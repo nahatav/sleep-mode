@@ -140,7 +140,7 @@ html {
   margin: 0 !important;
   display: table !important;
   overflow: visible !important;
-  width: max-content !important;
+  width: 100%;
   max-width: none !important;
 }
 
@@ -186,7 +186,7 @@ html, body {
   margin: 0 !important;
   display: table !important;
   overflow: visible !important;
-  width: max-content !important;
+  width: 100%;
   max-width: none !important;
 }
 

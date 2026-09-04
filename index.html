@@ -617,8 +617,15 @@
       var padBottom = parseFloat(cardStyle.paddingBottom) || 0;
       var availWidth = card.clientWidth - padLeft - padRight;
       var naturalWidth = table.scrollWidth;
-      
-      if (naturalWidth > availWidth && availWidth > 0) {
+      var isNarrow = window.innerWidth < desktopWidth;
+
+      if (!isNarrow) {
+        table.style.transform = '';
+        table.style.maxWidth = '';
+        table.style.width = '100%';
+        card.style.height = 'auto';
+        card.style.overflow = 'hidden';
+      } else if (naturalWidth > availWidth && availWidth > 0) {
         var tScale = availWidth / naturalWidth;
         table.style.maxWidth = 'none';
         table.style.width = naturalWidth + 'px';
