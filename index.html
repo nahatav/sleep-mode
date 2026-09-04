@@ -80,6 +80,7 @@
 <a href="#model-selection" class="sub">7.2 Model selection</a>
 <a href="#result" class="sub">7.3 Result</a>
 <a href="#fairness-analysis"><span class="num">8 </span>Fairness Analysis</a>
+<a href="#links"><span class="num">9 </span>Links</a>
 </div>
 
 <h2 id="introduction">Introduction</h2>
@@ -90,7 +91,7 @@
 
 <p>The question I investigate is how well a phone can identify sleep using only its least sensitive signals, meaning motion, battery, ringer, screen, and clock time, with the microphone and GPS excluded entirely.</p>
 
-<p>The <a href="http://extrasensory.ucsd.edu/">UCSD ExtraSensory dataset</a> is unusually well suited to the comparison. It contains a year of real world smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016, in which every row is a single one-minute window described by roughly 225 pre-computed sensor features alongside 51 context labels the participants reported about themselves. Because it carries both the invasive sensors and the innocuous ones on identical windows, the two can be compared directly instead of across separate studies.</p>
+<p>The UCSD ExtraSensory dataset is unusually well suited to the comparison. It contains a year of real world smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016, in which every row is a single one-minute window described by roughly 225 pre-computed sensor features alongside 51 context labels the participants reported about themselves. Because it carries both the invasive sensors and the innocuous ones on identical windows, the two can be compared directly instead of across separate studies.</p>
 
 <p>I use all 377,346 windows from all 60 users. The source files carry 278 columns; I retain 30, covering the sensor families that could plausibly bear on sleep, the labels required to define and frame the problem, and two sensors that exist in the data purely so that I can demonstrate excluding them.</p>
 
@@ -713,8 +714,18 @@
 
 <p>Failing to reject is not the same as finding the model fair, and here that distinction carries most of the weight. The unit of resampling is the user, there are only fourteen of them, and the permutation null accordingly has a standard deviation of 0.053. A difference would have to be enormous to clear that bar. Nearly nine points of F1 is substantively large for anyone whose schedule is unusual, and it runs in the direction the model's own construction implies, since cyclic hour and the time-of-day buckets together carry more importance than any feature except trailing stillness.</p>
 
-<p>The honest summary is that the evidence is suggestive but does not reach the threshold I set, and that the study is too small to settle the question. The model is not shown to be fair. Two of the seven irregular users contribute fewer than 100 labeled sleeping windows each, so their individual scores are themselves noisy. Settling this would need a held out set of dozens of users deliberately sampled across schedule types, which sixty participants cannot supply.</p>
+<h2 id="links">Links</h2>
 
+<div class="resource-links">
+  <a href="https://github.com/nahatav/sleep-mode" class="resource-btn" target="_blank" rel="noopener noreferrer">
+    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    <span>View on GitHub</span>
+  </a>
+  <a href="http://extrasensory.ucsd.edu/" class="resource-btn" target="_blank" rel="noopener noreferrer">
+    <svg height="16" width="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+    <span>UCSD ExtraSensory Dataset</span>
+  </a>
+</div>
 
       <footer class="site-footer">
         
