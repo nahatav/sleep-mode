@@ -55,7 +55,7 @@
 </div>
 
 <div class="abstract">
-  <p>Sleep tracking applications routinely request microphone and location access. Using 377,346 one-minute windows of smartphone telemetry from 60 users, I ask whether those permissions are necessary, or whether the sensors a phone reports without asking are already sufficient. Battery level turns out to carry a substantial and previously unremarked sleep signal, differing by 0.149 between sleeping and awake windows recorded in the same posture at the same hour of night. A decision tree using only motion and clock time reaches an F1 of 0.833 on fourteen held-out users, though a breakdown by hour shows it has learned a single rule that cannot represent sleep onset or wake time at all.</p>
+  <p>Sleep tracking applications routinely request microphone and location access. Using 377,346 one-minute windows of smartphone telemetry from 60 users, I ask whether those permissions are necessary, or whether the sensors a phone reports without asking are already sufficient. Battery level turns out to carry a substantial and previously unremarked sleep signal, differing by 0.149 between sleeping and awake windows recorded in the same posture at the same hour of night. A decision tree using only motion and clock time reaches an F1 of 0.833 on fourteen held-out users, though a breakdown by hour shows it has learned a single rule that cannot represent sleep onset or wake time at all. Adding trailing stillness, time since the phone was last handled, a cyclic clock, and the phone's own power and ringer state lifts a random forest to 0.870 and, more importantly, recovers the hours where sleep actually begins and ends. The same model is roughly nine points of F1 worse for people whose schedules are irregular.</p>
 </div>
 
 <div class="toc">
@@ -75,6 +75,9 @@
 <a href="#specification" class="sub">6.1 Specification</a>
 <a href="#what-the-model-actually-learned" class="sub">6.2 What the model actually learned</a>
 <a href="#final-model"><span class="num">7 </span>Final Model</a>
+<a href="#engineered-features" class="sub">7.1 Engineered features</a>
+<a href="#model-selection" class="sub">7.2 Model selection</a>
+<a href="#result" class="sub">7.3 Result</a>
 <a href="#fairness-analysis"><span class="num">8 </span>Fairness Analysis</a>
 </div>
 
@@ -494,7 +497,7 @@
 </table>
 </div>
 
-<p>The second is a derived column rather than a raw one. Clock hour is cyclic and has no meaningful zero, so supplying it as a number would let the model treat 23:00 and 00:00 as maximally distant. Bucketing into six blocks and one-hot encoding removes the ordering entirely. The encoding is blunt, and improving it is the first item in the plan below.</p>
+<p>The second is a derived column rather than a raw one. Clock hour is cyclic and has no meaningful zero, so supplying it as a number would let the model treat 23:00 and 00:00 as maximally distant. Bucketing into six blocks and one-hot encoding removes the ordering entirely. The encoding is blunt, and replacing it is one of the changes the final model makes.</p>
 
 <p>The estimator is a depth-3 decision tree, kept shallow deliberately, because with two inputs and clear threshold structure in both, additional depth would fit user-specific quirks that do not transfer to held-out participants. Feature transformation and model fitting occupy a single scikit-learn pipeline.</p>
 
@@ -538,15 +541,144 @@
 
 <h2 id="final-model">Final Model</h2>
 
-<p>In progress. Four additions are planned, each aimed at the hours where recall currently vanishes.</p>
+<h3 id="engineered-features">Engineered features</h3>
 
-<p>Rolling stillness, computed as the mean of <code class="language-plaintext highlighter-rouge">acc_std</code> over a centered 31-minute window within each user, addresses the largest structural limitation, since the baseline treats every minute as independent when a single still minute is ambiguous and half an hour of stillness is not. Time since the phone was last handled, measured in minutes since the most recent foreground or call window, encodes the transition into sleep rather than the state, which is what the failures at eleven at night require. Cyclic hour, replacing the six buckets with the sine and cosine of the clock angle, places 23:50 adjacent to 00:10 and removes the hard boundary that produced the failure in the first place. The privacy-safe phone state, covering <code class="language-plaintext highlighter-rouge">battery_level</code>, <code class="language-plaintext highlighter-rouge">battery_state</code>, <code class="language-plaintext highlighter-rouge">ringer_mode</code>, and <code class="language-plaintext highlighter-rouge">screen_brightness</code>, supplies information that the hypothesis test established is present exactly where clock time and stillness both fail.</p>
+<p>Four additions go in, each aimed at the hours where the baseline scored nothing at all.</p>
 
-<p>The estimator moves to a random forest, tuning maximum depth and minimum samples per leaf by grid search on the same split and the same metric, so that the comparison against the baseline is direct.</p>
+<p>Rolling stillness is the mean of <code class="language-plaintext highlighter-rouge">acc_std</code> over the trailing 30 minutes, computed inside each user so that one participant's night never bleeds into another's. Sleep is sustained stillness rather than any single quiet minute, and the baseline had no way to express that because it treated every window as independent.</p>
+
+<p>Time since the phone was last handled counts the minutes since the most recent window with the app in the foreground or a call active, forward-filled within each user and capped at 720. The cap stops the first window of a recording, or any long gap, from becoming an arbitrarily large number, and twelve hours is already far beyond the point where the feature discriminates. Falling asleep follows putting the phone down, so this describes the transition into sleep rather than the state itself, which is what the failures at eleven at night required.</p>
+
+<p>Cyclic hour replaces the six one-hot buckets with the sine and cosine of the clock angle, placing 23:50 next to 00:10 and dissolving the hard boundary the baseline had built at midnight. The buckets remain in the feature set, so the final model sees a strict superset of the baseline features.</p>
+
+<p>The privacy-safe phone state contributes <code class="language-plaintext highlighter-rouge">battery_level</code>, <code class="language-plaintext highlighter-rouge">battery_state</code>, <code class="language-plaintext highlighter-rouge">ringer_mode</code>, and <code class="language-plaintext highlighter-rouge">screen_brightness</code>. The hypothesis test established that battery level separates sleep from waking rest at the same hour and in the same posture, which is precisely where clock time and stillness both fail. Quantitative columns are median-imputed and nominal ones are filled with an explicit unknown category before one-hot encoding, since a missing ringer mode means an iPhone rather than a silent phone and deserves to be modelled as its own state.</p>
+
+<p>Both temporal features look strictly backwards. A centered window would describe sleep better, because the minutes following a still minute are as informative as the minutes preceding it, but the framing above committed to using only what the device holds at the moment the window closes. A retrospective nightly summary could relax that constraint. A live tracker cannot, so I did not.</p>
+
+<h3 id="model-selection">Model selection</h3>
+
+<p>The estimator moves to a random forest, because the boundary here is a conjunction of thresholds across several sensors and a single tree has to spend depth re-splitting on the same columns to express it.</p>
+
+<p>The two hyperparameters chosen for tuning before the search was run are maximum depth and minimum samples per leaf. Depth governs how much user-specific structure the forest can memorize, which is the failure mode that matters when every test user is a stranger, and leaf size governs whether the model can carve out individual one-off minutes. Depth was searched over 8, 14, and unlimited, and leaf size over 1 and 20.</p>
+
+<p>Cross-validation folds are grouped by user. Ordinary k-fold would scatter one person's minutes across every fold and then select whichever setting memorized them best, which is the exact opposite of what the held-out-user test set measures.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>max_depth</th>
+      <th>min_samples_leaf</th>
+      <th>Grouped CV F1</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>8</td><td>1</td><td>0.7925</td></tr>
+    <tr><td>8</td><td>20</td><td>0.7932</td></tr>
+    <tr><td>14</td><td>1</td><td>0.7682</td></tr>
+    <tr><td>14</td><td>20</td><td>0.7757</td></tr>
+    <tr><td>None</td><td>1</td><td>0.7681</td></tr>
+    <tr><td>None</td><td>20</td><td>0.7781</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The search preferred the shallowest depth offered and the larger leaf size. That is what a user-grouped split rewards, since deeper forests memorize individual sleep habits that do not transfer, and it is the reason the grouping matters rather than being a technicality.</p>
+
+<h3 id="result">Result</h3>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>Split</th>
+      <th>F1</th>
+      <th>Precision</th>
+      <th>Recall</th>
+      <th>Accuracy</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Baseline</td><td>Train</td><td>0.790</td><td>0.799</td><td>0.781</td><td>0.884</td></tr>
+    <tr><td>Baseline</td><td>Test, unseen users</td><td>0.833</td><td>0.877</td><td>0.794</td><td>0.897</td></tr>
+    <tr><td>Final</td><td>Train</td><td>0.863</td><td>0.895</td><td>0.832</td><td>0.926</td></tr>
+    <tr><td>Final</td><td>Test, unseen users</td><td>0.870</td><td>0.925</td><td>0.822</td><td>0.921</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The final model reaches an F1 of 0.870 on the held-out users against 0.833 for the baseline, gaining about five points of precision and three of recall at once. The aggregate understates what changed.</p>
+
+<div class="figure">
+<div class="figure-wrapper"><iframe src="assets/recall-by-hour.html" frameborder="0" scrolling="no"></iframe></div>
+<p class="caption"><span class="lab">Figure 7.</span> Recall on true sleeping windows by hour for both models, evaluated on the fourteen held-out users.</p>
+</div>
+
+<p>The baseline scored exactly zero at every hour outside the midnight-to-eight band. The final model recovers 65% of sleeping windows at eight in the morning, 42% at nine, and 35% at eleven at night, which are the hours where sleep onset and wake time are actually decided and the only hours where a tracker's answer is ever in doubt.</p>
+
+<p>The gain is not free. Recall slips at a few hours well inside the night, from 0.976 to 0.870 at midnight and from 0.960 to 0.908 at seven, because the forest no longer treats the hour alone as sufficient and sometimes waits for the stillness window to agree. Trading a little certainty in the middle of the night for the ability to see the edges of it is the right trade, since the middle of the night was never the part in question.</p>
+
+<p>The model still scores zero from ten in the morning through ten at night, covering roughly 1,900 test windows. Those are daytime naps, and nothing in the privacy-safe feature set distinguishes a nap from a phone resting on a desk. That limitation is real and no aggregate should be allowed to hide it.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Importance</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code class="language-plaintext highlighter-rouge">acc_std_roll30</code></td><td>0.216</td></tr>
+    <tr><td><code class="language-plaintext highlighter-rouge">hour_sin</code></td><td>0.168</td></tr>
+    <tr><td><code class="language-plaintext highlighter-rouge">tod_00-04</code></td><td>0.114</td></tr>
+    <tr><td><code class="language-plaintext highlighter-rouge">battery_level</code></td><td>0.084</td></tr>
+    <tr><td><code class="language-plaintext highlighter-rouge">hour_cos</code></td><td>0.075</td></tr>
+    <tr><td><code class="language-plaintext highlighter-rouge">acc_std</code></td><td>0.059</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>The importances support the reasoning behind the additions rather than merely the outcome. Trailing stillness is the single most important feature, ahead of cyclic hour and the midnight-to-four bucket. Battery level ranks fourth, which is the same signal the hypothesis test isolated earlier, now holding its place inside a model with access to everything else.</p>
 
 <h2 id="fairness-analysis">Fairness Analysis</h2>
 
-<p>In progress. The planned comparison evaluates model F1 on users whose sleep is concentrated overnight against users with irregular or daytime schedules, tested by permutation. A model leaning as heavily on clock time as this one does should be expected to underperform on the second group, and the purpose of the analysis is to measure the size of that difference.</p>
+<p>The model leans heavily on clock time, so the question worth asking is whether it works less well for people whose sleep does not fall where the clock expects it.</p>
+
+<p>I split the fourteen held-out users by how concentrated their sleep is overnight, measuring for each the share of their sleeping windows falling between ten at night and eight in the morning, then cutting at the median of 0.917. Group X is the seven users below that line, whose sleep is more scattered across the day. Group Y is the seven above it. The evaluation metric stays F1 on the sleeping class, the same one the model was selected on.</p>
+
+<p>The null hypothesis is that the model is fair, meaning its F1 is the same for both groups and any observed difference is due to chance. The alternative is that the model is unfair, with a lower F1 for the irregular-schedule group. The test statistic is the difference in F1, irregular minus regular, and the significance level is 0.05.</p>
+
+<p>The permutation shuffles the group label across users rather than across windows. Schedule regularity is a property of a person, every window belonging to one user shares it, and shuffling individual windows would break that structure and manufacture a null far narrower than the truth.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>Group</th>
+      <th>Users</th>
+      <th>Windows</th>
+      <th>F1</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Irregular schedule</td><td>7</td><td>41,071</td><td>0.831</td></tr>
+    <tr><td>Regular schedule</td><td>7</td><td>35,657</td><td>0.917</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="figure">
+<div class="figure-wrapper"><iframe src="assets/fairness-null.html" frameborder="0" scrolling="no"></iframe></div>
+<p class="caption"><span class="lab">Figure 8.</span> Empirical null distribution over 10,000 permutations of the user-level group assignment, with the observed difference marked.</p>
+</div>
+
+<p>The observed gap is 0.086 in the direction the alternative predicted, with a p-value of 0.057. That sits just above the 0.05 threshold, so I fail to reject the null hypothesis at the stated level.</p>
+
+<p>Failing to reject is not the same as finding the model fair, and here that distinction carries most of the weight. The unit of resampling is the user, there are only fourteen of them, and the permutation null accordingly has a standard deviation of 0.053. A gap would have to be enormous to clear that bar. Nearly nine points of F1 is substantively large for anyone whose schedule is unusual, and it runs in the direction the model's own construction implies, since cyclic hour and the time-of-day buckets together carry more importance than any feature except trailing stillness.</p>
+
+<p>The honest summary is that the evidence is suggestive but does not reach the threshold I set, and that the study is too small to settle the question rather than the model being demonstrably even-handed. Two of the seven irregular users contribute fewer than 100 labeled sleeping windows each, so their individual scores are themselves noisy. Settling this would need a held-out set of dozens of users deliberately sampled across schedule types, which sixty participants cannot supply.</p>
 
 
       <footer class="site-footer">
