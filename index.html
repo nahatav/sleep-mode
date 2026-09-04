@@ -55,7 +55,7 @@
 </div>
 
 <div class="abstract">
-  <p>Sleep tracking applications routinely request microphone and location access. Using <span class="gold">377,346</span> one-minute windows of smartphone telemetry from <span class="gold">60 users</span>, I ask whether those permissions are necessary, or whether the sensors a phone reports without asking are already sufficient. Battery level turns out to carry a substantial and previously unremarked sleep signal, differing by <span class="gold">0.149</span> between sleeping and awake windows recorded in the same posture at the same hour of night. A decision tree using only motion and clock time reaches an F1 of <span class="gold">0.833</span> on fourteen held-out users, though a breakdown by hour shows it has learned a single rule that cannot represent sleep onset or wake time at all.</p>
+  <p>Sleep tracking applications routinely request microphone and location access. Using 377,346 one-minute windows of smartphone telemetry from 60 users, I ask whether those permissions are necessary, or whether the sensors a phone reports without asking are already sufficient. Battery level turns out to carry a substantial and previously unremarked sleep signal, differing by 0.149 between sleeping and awake windows recorded in the same posture at the same hour of night. A decision tree using only motion and clock time reaches an F1 of 0.833 on fourteen held-out users, though a breakdown by hour shows it has learned a single rule that cannot represent sleep onset or wake time at all.</p>
 </div>
 
 <div class="toc">
@@ -86,9 +86,9 @@
 
 <p>The question I investigate is how well a phone can identify sleep using only its least sensitive signals, meaning motion, battery, ringer, screen, and clock time, with the microphone and GPS excluded entirely.</p>
 
-<p>The <a href="http://extrasensory.ucsd.edu/">UCSD ExtraSensory dataset</a> is unusually well suited to the comparison. It contains a year of in-the-wild smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016, in which every row is a single one-minute window described by roughly 225 pre-computed sensor features alongside 51 context labels the participants reported about themselves. Because it carries both the invasive sensors and the innocuous ones on identical windows, the two can be compared directly rather than across separate studies.</p>
+<p>The <a href="http://extrasensory.ucsd.edu/">UCSD ExtraSensory dataset</a> is unusually well suited to the comparison. It contains a year of real-world smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016, in which every row is a single one-minute window described by roughly 225 pre-computed sensor features alongside 51 context labels the participants reported about themselves. Because it carries both the invasive sensors and the innocuous ones on identical windows, the two can be compared directly rather than across separate studies.</p>
 
-<p>I use all <span class="gold">377,346 windows</span> from all <span class="gold">60 users</span>. The source files carry 278 columns; I retain 30, covering the sensor families that could plausibly bear on sleep, the labels required to define and frame the problem, and two sensors that exist in the data purely so that I can demonstrate excluding them.</p>
+<p>I use all 377,346 windows from all 60 users. The source files carry 278 columns; I retain 30, covering the sensor families that could plausibly bear on sleep, the labels required to define and frame the problem, and two sensors that exist in the data purely so that I can demonstrate excluding them.</p>
 
 <div class="data-card">
 <table>
@@ -393,14 +393,14 @@
 
 <p>One methodological point governs everything below. The rows are one-minute windows drawn from continuous recording, so consecutive rows are nearly identical, and treating all 377,346 as independent draws drives every permutation test to a p-value of zero, including tests on columns with no plausible relationship to the outcome. To recover an effective sample size closer to the true one, I draw a single window per user per hour, which leaves 7,376 rows, still substantial but no longer dominated by within-session autocorrelation.</p>
 
-<p>For the first test the null hypothesis is that the distribution of battery level is the same whether or not the sleep label is missing, against the alternative that the two distributions differ. The test statistic is the absolute difference in mean battery level between the missing and non-missing groups, evaluated at a significance level of 0.05. Mean battery level is 0.605 where the label is absent and 0.672 where it is present, giving an observed statistic of <span class="gold">0.067</span>.</p>
+<p>For the first test the null hypothesis is that the distribution of battery level is the same whether or not the sleep label is missing, against the alternative that the two distributions differ. The test statistic is the absolute difference in mean battery level between the missing and non-missing groups, evaluated at a significance level of 0.05. Mean battery level is 0.605 where the label is absent and 0.672 where it is present, giving an observed statistic of 0.067.</p>
 
 <div class="figure">
 <div class="figure-wrapper"><iframe src="assets/missingness-battery.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 5.</span> Empirical null distribution over 5,000 permutations, with the observed statistic marked.</p>
 </div>
 
-<p>The observed gap does not occur in any of 5,000 permutations, so the p-value falls below <span class="gold">&lt; 0.001</span> and I reject the null. Windows carrying a missing sleep label sit at a lower battery level. The mechanism is direct, in that a phone running low belongs to someone who has stopped engaging with the application, and a phone that dies overnight stops recording labels entirely.</p>
+<p>The observed difference does not occur in any of 5,000 permutations, so the p-value falls below 0.001 and I reject the null. Windows carrying a missing sleep label sit at a lower battery level. The mechanism is direct, in that a phone running low belongs to someone who has stopped engaging with the application, and a phone that dies overnight stops recording labels entirely.</p>
 
 <p>The second test uses magnetometer variability, which measures fluctuation in the local magnetic field and responds to nearby metal and electronics. No route connects that to whether a participant remembered to label their sleep, which makes it a suitable control. The null hypothesis is that the distribution of magnetometer variability is the same whether or not the sleep label is missing, against the alternative that the two differ, using the absolute difference in means as the statistic at the same 0.05 level. The observed statistic is 0.392 with a p-value of 0.284, well above the threshold, so I fail to reject the null.</p>
 
@@ -417,8 +417,8 @@
   <tbody>
     <tr>
       <td><code class="language-plaintext highlighter-rouge">battery_level</code></td>
-      <td style="text-align: right"><span class="gold">0.0669</span></td>
-      <td style="text-align: right"><span class="gold">&lt; 0.001</span></td>
+      <td style="text-align: right">0.0669</td>
+      <td style="text-align: right">&lt; 0.001</td>
       <td style="text-align: right">7,369</td>
     </tr>
     <tr>
@@ -437,16 +437,16 @@
 
 <p>The exploratory work suggests that among people lying in bed at night, those asleep have fuller batteries. The claim deserves a formal test, because battery level is the cheapest sleep signal available. It requires no permission on any platform, discloses nothing about location or speech, and is already visible on screen.</p>
 
-<p>Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, so the comparison runs between sleep and waking rest rather than between night and day. I use the same one-window-per-user-hour subsample described above, for the same reason, which leaves 1,274 windows from 52 users.</p>
+<p>Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, so the comparison runs between sleep and waking rest rather than between night and day. I use the same the same hourly-subsample approach described above, which leaves 1,274 windows from 52 users.</p>
 
 <p>The null hypothesis is that among those windows the mean battery level is the same for windows labeled sleeping and windows labeled not sleeping, with any observed difference attributable to chance. The alternative is that the mean battery level is higher when the user reported sleeping. The test statistic is the difference in mean battery level, sleeping minus waking, signed rather than absolute because the alternative is directional, and a difference in means rather than a total variation or Kolmogorov-Smirnov statistic because battery level is quantitative and the claim concerns level rather than shape. I evaluate at a significance level of 0.05 using a permutation test with 10,000 repetitions.</p>
 
 <div class="figure">
 <div class="figure-wrapper"><iframe src="assets/hypothesis-null.html" frameborder="0" scrolling="no"></iframe></div>
-<p class="caption"><span class="lab">Figure 6.</span> Empirical null distribution over 10,000 permutations, with the observed difference of <span class="gold">0.149</span> marked.</p>
+<p class="caption"><span class="lab">Figure 6.</span> Empirical null distribution over 10,000 permutations, with the observed difference of 0.149 marked.</p>
 </div>
 
-<p>The observed difference is <span class="gold">0.149</span> with a p-value below <span class="gold">&lt; 0.001</span>. Sleeping windows sit roughly fifteen percentage points higher in charge than waking ones at the same hour and in the same posture, and across 10,000 permutations no rearrangement of the labels produced a difference that large, so I reject the null at the 0.05 level.</p>
+<p>The observed difference is 0.149 with a p-value below 0.001. Sleeping windows sit roughly fifteen percentage points higher in charge than waking ones at the same hour and in the same posture, and across 10,000 permutations no rearrangement of the labels produced a difference that large, so I reject the null at the 0.05 level.</p>
 
 <p>This constitutes evidence against the null rather than proof of a mechanism. A permutation test on observational data cannot exclude a common cause, and the most likely candidate is the bedtime routine itself, since plugging in and going to sleep are the same act for most people, which would make battery level a proxy for a habit rather than for sleep. That is acceptable for prediction and is precisely why the model relies on it, but it would not support a causal claim.</p>
 
@@ -519,7 +519,7 @@
     </tr>
     <tr>
       <td style="text-align: left">Test, unseen users</td>
-      <td style="text-align: right"><span class="gold">0.833</span></td>
+      <td style="text-align: right">0.833</td>
       <td style="text-align: right">0.877</td>
       <td style="text-align: right">0.794</td>
       <td style="text-align: right">0.897</td>
@@ -530,23 +530,23 @@
 
 <h3 id="what-the-model-actually-learned">What the model actually learned</h3>
 
-<p>The result is partly good. An F1 of <span class="gold">0.833</span> on fourteen users the model has never seen is genuine, and it stands well above the 0.488 obtained by predicting sleep on every window. Two features and three splits recover most of the available signal, which indicates the problem is easy in the bulk.</p>
+<p>The result is partly good. An F1 of 0.833 on fourteen users the model has never seen is genuine, and it stands well above the 0.488 obtained by predicting sleep on every window. Two features and three splits recover most of the available signal, which indicates the problem is easy in the bulk.</p>
 
-<p>Breaking recall down by hour shows that the headline score is misleading. Recall exceeds 0.94 at every hour from midnight through eight in the morning and is <span class="gold">exactly zero</span> at every other hour. A depth-3 tree given these two inputs has discovered a single rule, that sleeping means still and between midnight and eight, and consequently misses every sleeping minute reported at eleven at night or after eight in the morning, amounting to <span class="gold">4,491</span> windows in the test set alone.</p>
+<p>Breaking recall down by hour shows that the headline score is misleading. Recall exceeds 0.94 at every hour from midnight through eight in the morning and is exactly zero at every other hour. A depth-3 tree given these two inputs has discovered a single rule, that sleeping means still and between midnight and eight, and consequently misses every sleeping minute reported at eleven at night or after eight in the morning, amounting to 4,491 windows in the test set alone.</p>
 
-<p>Three consequences follow. The model cannot represent sleep onset or wake time, which are the two quantities a sleep tracker exists to report and which fall precisely in the hours where recall vanishes; an overall recall of 0.794 conceals this because the midnight-to-eight band contains most of the sleep. Test F1 also exceeds train F1, at 0.833 against 0.790, which does not indicate strong generalization but reflects the held-out users sleeping more, 32.3% against 27.9%, inflating F1 on the positive class and marking a single fourteen-user split as a noisy estimate. Finally the two features compensate for each other badly, since stillness cannot separate sleep from a phone on a desk, clock time cannot separate sleep from lying awake at two in the morning, and neither feature knows anything about the preceding twenty minutes, when sleep is sustained stillness rather than any single still minute.</p>
+<p>Three consequences follow. The model cannot represent sleep onset or wake time, which are the two quantities a sleep tracker exists to report and which fall precisely in the hours where recall vanishes; an overall recall of 0.794 conceals this because the midnight-to-eight band contains most of the sleep. Test F1 also exceeds train F1 (0.833 vs 0.790) which does not indicate strong generalization but reflects the held-out users sleeping more (32.3% vs 27.9%), inflating F1 on the positive class and marking a single fourteen-user split as a noisy estimate. Finally the two features compensate for each other badly, since stillness cannot separate sleep from a phone on a desk, clock time cannot separate sleep from lying awake at two in the morning, and neither feature knows anything about the preceding twenty minutes, when sleep is sustained stillness rather than any single still minute.</p>
 
 <h2 id="final-model">Final Model</h2>
 
 <p>In progress. Four additions are planned, each aimed at the hours where recall currently vanishes.</p>
 
-<p>Rolling stillness, computed as the mean of <code class="language-plaintext highlighter-rouge">acc_std</code> over a centered 31-minute window within each user, addresses the largest structural gap, since the baseline treats every minute as independent when a single still minute is ambiguous and half an hour of stillness is not. Time since the phone was last handled, measured in minutes since the most recent foreground or call window, encodes the transition into sleep rather than the state, which is what the failures at eleven at night require. Cyclic hour, replacing the six buckets with the sine and cosine of the clock angle, places 23:50 adjacent to 00:10 and removes the hard boundary that produced the failure in the first place. The privacy-safe phone state, covering <code class="language-plaintext highlighter-rouge">battery_level</code>, <code class="language-plaintext highlighter-rouge">battery_state</code>, <code class="language-plaintext highlighter-rouge">ringer_mode</code>, and <code class="language-plaintext highlighter-rouge">screen_brightness</code>, supplies information that the hypothesis test established is present exactly where clock time and stillness both fail.</p>
+<p>Rolling stillness, computed as the mean of <code class="language-plaintext highlighter-rouge">acc_std</code> over a centered 31-minute window within each user, addresses the largest structural limitation, since the baseline treats every minute as independent when a single still minute is ambiguous and half an hour of stillness is not. Time since the phone was last handled, measured in minutes since the most recent foreground or call window, encodes the transition into sleep rather than the state, which is what the failures at eleven at night require. Cyclic hour, replacing the six buckets with the sine and cosine of the clock angle, places 23:50 adjacent to 00:10 and removes the hard boundary that produced the failure in the first place. The privacy-safe phone state, covering <code class="language-plaintext highlighter-rouge">battery_level</code>, <code class="language-plaintext highlighter-rouge">battery_state</code>, <code class="language-plaintext highlighter-rouge">ringer_mode</code>, and <code class="language-plaintext highlighter-rouge">screen_brightness</code>, supplies information that the hypothesis test established is present exactly where clock time and stillness both fail.</p>
 
 <p>The estimator moves to a random forest, tuning maximum depth and minimum samples per leaf by grid search on the same split and the same metric, so that the comparison against the baseline is direct.</p>
 
 <h2 id="fairness-analysis">Fairness Analysis</h2>
 
-<p>In progress. The planned comparison evaluates model F1 on users whose sleep is concentrated overnight against users with irregular or daytime schedules, tested by permutation. A model leaning as heavily on clock time as this one does should be expected to underperform on the second group, and the purpose of the analysis is to measure the size of that gap.</p>
+<p>In progress. The planned comparison evaluates model F1 on users whose sleep is concentrated overnight against users with irregular or daytime schedules, tested by permutation. A model leaning as heavily on clock time as this one does should be expected to underperform on the second group, and the purpose of the analysis is to measure the size of that difference.</p>
 
 
       <footer class="site-footer">
