@@ -48,7 +48,7 @@
 <h1 id="title">Detecting sleep from the sensors a phone does not need permission for</h1>
 
 <div class="byline">
-  <img src="assets/avatar.png" alt="Valmik Nahata" class="author-avatar" width="28" height="28" />
+  <img src="assets/avatar.png" alt="Valmik Nahata" class="author-avatar" />
   <span class="author-name">Valmik Nahata</span>
   <span class="byline-sep">·</span>
   <span class="byline-meta">21 min read</span>
@@ -76,17 +76,6 @@
 <a href="#what-the-model-actually-learned" class="sub">6.2 What the model actually learned</a>
 <a href="#final-model"><span class="num">7 </span>Final Model</a>
 <a href="#fairness-analysis"><span class="num">8 </span>Fairness Analysis</a>
-</div>
-
-<div class="resource-links">
-  <a href="https://github.com/nahatav/sleep-mode" class="resource-btn" target="_blank" rel="noopener noreferrer">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-    <span>View on GitHub</span>
-  </a>
-  <a href="http://extrasensory.ucsd.edu/" class="resource-btn" target="_blank" rel="noopener noreferrer">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
-    <span>UCSD ExtraSensory Dataset</span>
-  </a>
 </div>
 
 <h2 id="introduction">Introduction</h2>
@@ -284,14 +273,14 @@
 <h3 id="univariate-analysis">Univariate analysis</h3>
 
 <div class="figure">
-<iframe src="assets/motion-distribution.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<div class="figure-wrapper"><iframe src="assets/motion-distribution.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 1.</span> Distribution of accelerometer magnitude standard deviation across all 377,346 windows, on a log scale.</p>
 </div>
 
 <p>Accelerometer variability is bimodal. A tall, narrow mode near 10<sup>-2.8</sup> corresponds to a phone lying completely still, and a broad, low mode near 10<sup>-1.1</sup> corresponds to one being carried or handled, with a clear trough separating them. A single threshold on this column therefore partitions most windows cleanly. The difficulty is that the still mode contains both a sleeping user and a phone abandoned on a desk, so stillness alone cannot resolve the question.</p>
 
 <div class="figure">
-<iframe src="assets/sleep-duration.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<div class="figure-wrapper"><iframe src="assets/sleep-duration.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 2.</span> Recorded sleep per night across the 194 nights carrying at least 400 labeled windows and two hours of sleep.</p>
 </div>
 
@@ -300,7 +289,7 @@
 <h3 id="bivariate-analysis">Bivariate analysis</h3>
 
 <div class="figure">
-<iframe src="assets/sleep-clock.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<div class="figure-wrapper"><iframe src="assets/sleep-clock.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 3.</span> Proportion of labeled windows reported as sleeping, by local hour of day.</p>
 </div>
 
@@ -309,7 +298,7 @@
 <p>The harder comparison is between sleep and waking rest, since lying in bed at one in the morning resembles sleeping at one in the morning. Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, which isolates what remains.</p>
 
 <div class="figure">
-<iframe src="assets/battery-by-state.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<div class="figure-wrapper"><iframe src="assets/battery-by-state.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 4.</span> Battery level for sleeping and waking windows recorded while lying down between 22:00 and 06:00, across 67,328 windows from 52 users.</p>
 </div>
 
@@ -407,7 +396,7 @@
 <p>For the first test the null hypothesis is that the distribution of battery level is the same whether or not the sleep label is missing, against the alternative that the two distributions differ. The test statistic is the absolute difference in mean battery level between the missing and non-missing groups, evaluated at a significance level of 0.05. Mean battery level is 0.605 where the label is absent and 0.672 where it is present, giving an observed statistic of <span class="gold">0.067</span>.</p>
 
 <div class="figure">
-<iframe src="assets/missingness-battery.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<div class="figure-wrapper"><iframe src="assets/missingness-battery.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 5.</span> Empirical null distribution over 5,000 permutations, with the observed statistic marked.</p>
 </div>
 
@@ -453,7 +442,7 @@
 <p>The null hypothesis is that among those windows the mean battery level is the same for windows labeled sleeping and windows labeled not sleeping, with any observed difference attributable to chance. The alternative is that the mean battery level is higher when the user reported sleeping. The test statistic is the difference in mean battery level, sleeping minus waking, signed rather than absolute because the alternative is directional, and a difference in means rather than a total variation or Kolmogorov-Smirnov statistic because battery level is quantitative and the claim concerns level rather than shape. I evaluate at a significance level of 0.05 using a permutation test with 10,000 repetitions.</p>
 
 <div class="figure">
-<iframe src="assets/hypothesis-null.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<div class="figure-wrapper"><iframe src="assets/hypothesis-null.html" frameborder="0" scrolling="no"></iframe></div>
 <p class="caption"><span class="lab">Figure 6.</span> Empirical null distribution over 10,000 permutations, with the observed difference of <span class="gold">0.149</span> marked.</p>
 </div>
 
@@ -569,19 +558,112 @@
     </main>
   
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  document.querySelectorAll('.toc a[href^="#"]').forEach(function(link) {
-    link.addEventListener('click', function(e) {
-      var id = link.getAttribute('href').slice(1);
-      var target = document.getElementById(id);
-      if (target) {
-        e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        history.pushState(null, null, '#' + id);
+(function() {
+  function autoScaleCards() {
+    var desktopWidth = 720;
+    
+    // 1. Proportional scaling for all Graph Figures
+    var figures = document.querySelectorAll('.figure');
+    for (var i = 0; i < figures.length; i++) {
+      var fig = figures[i];
+      var iframe = fig.querySelector('iframe');
+      if (!iframe) continue;
+      
+      var wrapper = fig.querySelector('.figure-wrapper');
+      if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'figure-wrapper';
+        wrapper.style.width = '100%';
+        wrapper.style.position = 'relative';
+        wrapper.style.overflow = 'hidden';
+        iframe.parentNode.insertBefore(wrapper, iframe);
+        wrapper.appendChild(iframe);
       }
+      
+      var figWidth = fig.clientWidth;
+      if (figWidth < desktopWidth && figWidth > 0) {
+        var scale = figWidth / desktopWidth;
+        wrapper.style.height = Math.round(460 * scale) + 'px';
+        iframe.style.maxWidth = 'none';
+        iframe.style.width = desktopWidth + 'px';
+        iframe.style.height = '460px';
+        iframe.style.transformOrigin = '0 0';
+        iframe.style.transform = 'scale(' + scale + ')';
+      } else {
+        wrapper.style.height = '460px';
+        iframe.style.maxWidth = '';
+        iframe.style.width = '100%';
+        iframe.style.height = '460px';
+        iframe.style.transform = '';
+      }
+    }
+
+    // 2. Proportional scaling for all Table Cards
+    var cards = document.querySelectorAll('.data-card');
+    for (var j = 0; j < cards.length; j++) {
+      var card = cards[j];
+      var table = card.querySelector('table');
+      if (!table) continue;
+      
+      table.style.transform = '';
+      table.style.maxWidth = 'none';
+      table.style.width = 'max-content';
+      card.style.height = '';
+      
+      var cardStyle = window.getComputedStyle(card);
+      var padLeft = parseFloat(cardStyle.paddingLeft) || 0;
+      var padRight = parseFloat(cardStyle.paddingRight) || 0;
+      var padTop = parseFloat(cardStyle.paddingTop) || 0;
+      var padBottom = parseFloat(cardStyle.paddingBottom) || 0;
+      var availWidth = card.clientWidth - padLeft - padRight;
+      var naturalWidth = table.scrollWidth;
+      
+      if (naturalWidth > availWidth && availWidth > 0) {
+        var tScale = availWidth / naturalWidth;
+        table.style.maxWidth = 'none';
+        table.style.width = naturalWidth + 'px';
+        table.style.transformOrigin = '0 0';
+        table.style.transform = 'scale(' + tScale + ')';
+        card.style.height = Math.round(table.scrollHeight * tScale + padTop + padBottom + 4) + 'px';
+        card.style.overflow = 'hidden';
+      } else {
+        table.style.transform = '';
+        table.style.maxWidth = '';
+        table.style.width = '100%';
+        card.style.height = 'auto';
+        card.style.overflow = 'hidden';
+      }
+    }
+  }
+
+  // 3. Smooth scrolling for TOC links
+  function initSmoothScroll() {
+    document.querySelectorAll('.toc a[href^="#"]').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        var id = link.getAttribute('href').slice(1);
+        var target = document.getElementById(id);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          history.pushState(null, null, '#' + id);
+        }
+      });
     });
-  });
-});
+  }
+
+  window.addEventListener('resize', autoScaleCards);
+  window.addEventListener('load', autoScaleCards);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      autoScaleCards();
+      initSmoothScroll();
+    });
+  } else {
+    autoScaleCards();
+    initSmoothScroll();
+  }
+})();
 </script>
+
 </body>
 </html>
