@@ -174,15 +174,51 @@ html, body {
     font-size: 0.88rem;
   }
   .toc {
-    padding: 1.2rem 1.25rem;
-    line-height: 1.9;
+    padding: 1rem 1.15rem;
+    font-size: 0.85rem;
+    line-height: 1.85;
+  }
+  .toc-title {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
   }
   .toc a {
     word-break: break-word;
     overflow-wrap: break-word;
   }
+  .toc a.sub {
+    padding-left: 1.1rem;
+  }
+  .data-card {
+    padding: 0.35rem 0.75rem;
+    margin: 1.35rem 0;
+  }
+  .data-card table,
+  .main-content table {
+    font-size: 0.74rem !important;
+    line-height: 1.45 !important;
+  }
+  .main-content table th,
+  .main-content table td {
+    padding: 0.4rem 0.55rem 0.4rem 0 !important;
+  }
+  .main-content table code {
+    font-size: 0.74rem !important;
+  }
+  .figure {
+    margin: 1.35rem 0;
+  }
   .figure iframe {
-    height: 420px;
+    height: 360px !important;
+  }
+  .caption {
+    font-size: 0.8rem;
+    line-height: 1.5;
+  }
+  .main-content pre {
+    padding: 0.75rem 0.9rem;
+    font-size: 0.8rem;
+    line-height: 1.45;
   }
 }
 
@@ -196,19 +232,67 @@ html, body {
   .resource-links {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.6rem;
+    gap: 0.5rem;
   }
   .resource-btn {
     justify-content: center;
     width: 100%;
     box-sizing: border-box;
-    padding: 0.55rem 0.85rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.82rem;
+  }
+  .toc {
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+    line-height: 1.75;
+    border-radius: 5px;
+    margin-bottom: 0.85rem;
+  }
+  .toc-title {
+    font-size: 0.82rem;
+    margin-bottom: 0.35rem;
+  }
+  .toc a.sub {
+    padding-left: 0.85rem;
   }
   .data-card {
-    padding: 0.4rem 0.75rem;
-    margin: 1.25rem 0;
+    padding: 0.25rem 0.5rem;
+    margin: 1rem 0;
+    border-radius: 5px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .data-card table,
+  .main-content table {
+    font-size: 0.68rem !important;
+    line-height: 1.4 !important;
+  }
+  .main-content table th,
+  .main-content table td {
+    padding: 0.3rem 0.4rem 0.3rem 0 !important;
+  }
+  .main-content table th {
+    font-size: 0.68rem !important;
+  }
+  .main-content table code {
+    font-size: 0.68rem !important;
+  }
+  .figure {
+    margin: 1.15rem 0;
   }
   .figure iframe {
-    height: 380px;
+    height: 310px !important;
+    border-radius: 5px;
+  }
+  .caption {
+    font-size: 0.72rem;
+    line-height: 1.42;
+    margin-top: 0.45rem;
+  }
+  .main-content pre {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.74rem;
+    line-height: 1.4;
+    margin: 1rem 0;
+    border-radius: 5px;
   }
 }
