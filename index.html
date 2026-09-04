@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Detecting sleep from the sensors a phone does not need permission for</title>
+<meta name="generator" content="Jekyll v3.10.0" />
+<meta property="og:title" content="Detecting sleep from the sensors a phone does not need permission for" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="What a phone knows about your sleep when it is not watching you" />
+<meta property="og:description" content="What a phone knows about your sleep when it is not watching you" />
+<link rel="canonical" href="https://nahatav.github.io/sleep-mode/" />
+<meta property="og:url" content="https://nahatav.github.io/sleep-mode/" />
+<meta property="og:site_name" content="Sleep Mode" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Detecting sleep from the sensors a phone does not need permission for" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"What a phone knows about your sleep when it is not watching you","headline":"Sleep Mode","name":"Sleep Mode","url":"https://nahatav.github.io/sleep-mode/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="preload" href="https://fonts.googleapis.com/css?family=Open+Sans:400,700&display=swap" as="style" type="text/css" crossorigin>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#157878">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/sleep-mode/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+  <body>
+    
+
+    
+
+    <main id="content" class="main-content" role="main">
+      <div class="article-date">May 12, 2026</div>
+<h1 id="title">Detecting sleep from the sensors a phone does not need permission for</h1>
+
+<div class="byline">
+  <img src="assets/avatar.png" alt="Valmik Nahata" class="author-avatar" width="28" height="28" />
+  <span class="author-name">Valmik Nahata</span>
+  <span class="byline-sep">·</span>
+  <span class="byline-meta">21 min read</span>
+</div>
+
+<div class="abstract">
+  <p>Sleep tracking applications routinely request microphone and location access. Using <span class="gold">377,346</span> one-minute windows of smartphone telemetry from <span class="gold">60 users</span>, I ask whether those permissions are necessary, or whether the sensors a phone reports without asking are already sufficient. Battery level turns out to carry a substantial and previously unremarked sleep signal, differing by <span class="gold">0.149</span> between sleeping and awake windows recorded in the same posture at the same hour of night. A decision tree using only motion and clock time reaches an F1 of <span class="gold">0.833</span> on fourteen held-out users, though a breakdown by hour shows it has learned a single rule that cannot represent sleep onset or wake time at all.</p>
+</div>
+
+<div class="toc">
+<p class="toc-title">Contents</p>
+<a href="#introduction"><span class="num">1 </span>Introduction</a>
+<a href="#data-cleaning-and-exploratory-data-analysis"><span class="num">2 </span>Data Cleaning and Exploratory Data Analysis</a>
+<a href="#cleaning" class="sub">2.1 Cleaning</a>
+<a href="#univariate-analysis" class="sub">2.2 Univariate analysis</a>
+<a href="#bivariate-analysis" class="sub">2.3 Bivariate analysis</a>
+<a href="#aggregation" class="sub">2.4 Aggregation</a>
+<a href="#assessment-of-missingness"><span class="num">3 </span>Assessment of Missingness</a>
+<a href="#reasoning-about-the-mechanism" class="sub">3.1 Reasoning about the mechanism</a>
+<a href="#dependency-tests" class="sub">3.2 Dependency tests</a>
+<a href="#hypothesis-testing"><span class="num">4 </span>Hypothesis Testing</a>
+<a href="#framing-a-prediction-problem"><span class="num">5 </span>Framing a Prediction Problem</a>
+<a href="#baseline-model"><span class="num">6 </span>Baseline Model</a>
+<a href="#specification" class="sub">6.1 Specification</a>
+<a href="#what-the-model-actually-learned" class="sub">6.2 What the model actually learned</a>
+<a href="#final-model"><span class="num">7 </span>Final Model</a>
+<a href="#fairness-analysis"><span class="num">8 </span>Fairness Analysis</a>
+</div>
+
+<div class="resource-links">
+  <a href="https://github.com/nahatav/sleep-mode" class="resource-btn" target="_blank" rel="noopener noreferrer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+    <span>View on GitHub</span>
+  </a>
+  <a href="http://extrasensory.ucsd.edu/" class="resource-btn" target="_blank" rel="noopener noreferrer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+    <span>UCSD ExtraSensory Dataset</span>
+  </a>
+</div>
+
+<h2 id="introduction">Introduction</h2>
+
+<p>A phone can already tell when you are asleep. The open question is what it has to look at in order to do so.</p>
+
+<p>Sleep staging applications ask for the microphone. Commercial trackers ask for location. Both sensors reveal far more than the state they are being used to infer, and neither permission, once granted, is restricted to nighttime. If the sensors a phone reports anyway are sufficient on their own, then a tracker that requests the invasive ones is making a product decision rather than satisfying a technical constraint. That distinction is testable, and this project tests it.</p>
+
+<p>The question I investigate is how well a phone can identify sleep using only its least sensitive signals, meaning motion, battery, ringer, screen, and clock time, with the microphone and GPS excluded entirely.</p>
+
+<p>The <a href="http://extrasensory.ucsd.edu/">UCSD ExtraSensory dataset</a> is unusually well suited to the comparison. It contains a year of in-the-wild smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016, in which every row is a single one-minute window described by roughly 225 pre-computed sensor features alongside 51 context labels the participants reported about themselves. Because it carries both the invasive sensors and the innocuous ones on identical windows, the two can be compared directly rather than across separate studies.</p>
+
+<p>I use all <span class="gold">377,346 windows</span> from all <span class="gold">60 users</span>. The source files carry 278 columns; I retain 30, covering the sensor families that could plausibly bear on sleep, the labels required to define and frame the problem, and two sensors that exist in the data purely so that I can demonstrate excluding them.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>Column</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">uuid</code></td>
+      <td>Anonymized user identifier, recovered from the filename</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">timestamp</code></td>
+      <td>Unix time at the start of the one-minute window</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">raw_acc:magnitude_stats:std</code></td>
+      <td>Standard deviation of accelerometer magnitude, the primary stillness measure</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">raw_acc:magnitude_stats:mean</code></td>
+      <td>Mean accelerometer magnitude, near 1 g when the phone is at rest</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">raw_acc:magnitude_stats:value_entropy</code></td>
+      <td>Entropy of the accelerometer magnitude distribution</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">proc_gyro:magnitude_stats:std</code></td>
+      <td>Rotation variability, which captures handling that translation misses</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">lf_measurements:battery_level</code></td>
+      <td>Battery charge as a fraction from 0 to 1</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">discrete:battery_state:*</code></td>
+      <td>One-hot family covering unplugged, discharging, not charging, charging, full</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">discrete:ringer_mode:*</code></td>
+      <td>One-hot family covering normal, silent with vibrate, silent without vibrate</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">discrete:app_state:*</code></td>
+      <td>One-hot family recording whether the app was foreground, background, or inactive</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">lf_measurements:screen_brightness</code></td>
+      <td>Screen brightness from 0 to 1</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">lf_measurements:light</code></td>
+      <td>Ambient light, already log-scaled at source</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">discrete:wifi_status:is_reachable_via_wifi</code></td>
+      <td>Whether the phone held a WiFi connection</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">discrete:on_the_phone:is_True</code></td>
+      <td>Whether a call was active</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">label:SLEEPING</code></td>
+      <td>Self-reported sleep, taking values 1, 0, or missing, and serving as the response variable</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">label:LYING_DOWN</code></td>
+      <td>Self-reported posture, used to separate sleep from awake rest</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">label:LOC_home</code></td>
+      <td>Self-reported location</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">location:log_diameter</code></td>
+      <td>Log spatial spread of GPS fixes, withheld from the model deliberately</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">audio_properties:max_abs_value</code></td>
+      <td>Log peak microphone amplitude, also withheld deliberately</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">raw_magnet:magnitude_stats:std</code></td>
+      <td>Magnetometer variability, used as a control in the missingness tests</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="data-cleaning-and-exploratory-data-analysis">Data Cleaning and Exploratory Data Analysis</h2>
+
+<h3 id="cleaning">Cleaning</h3>
+
+<p>Each user occupies a separate compressed file named for their anonymized identifier, and that identifier appears nowhere in the file contents. I recovered it from the filename and attached it as a column before concatenating, since every subsequent step depends on knowing which user a window came from, and the train-test split is drawn along user boundaries.</p>
+
+<p>Timestamps arrive as seconds since epoch, which is unusable for a question about sleep. The study ran at UC San Diego, so I converted to <code class="language-plaintext highlighter-rouge">America/Los_Angeles</code>. The choice is not cosmetic. A conversion that ignores daylight saving displaces half the year by an hour, and an hour is a large error when the entire question concerns where sleep falls on the clock.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">discrete:</code> sensors arrive pre-encoded as one-hot families, so <code class="language-plaintext highlighter-rouge">battery_state</code> is spread across six binary columns. That shape is wrong for both grouping and for <code class="language-plaintext highlighter-rouge">OneHotEncoder</code>, and it conceals the fact that the categories are mutually exclusive, so I collapsed each family back into a single nominal column. Every family also carries a <code class="language-plaintext highlighter-rouge">:missing</code> indicator, which I mapped to a null rather than treating as a category. For <code class="language-plaintext highlighter-rouge">ringer_mode</code> that indicator is set on 58.6% of windows, almost all originating from iPhones, because iOS does not expose ringer state to third-party applications. Encoding a device limitation as though it meant the phone was silent would fabricate data.</p>
+
+<p>I dropped <code class="language-plaintext highlighter-rouge">lf_measurements:proximity</code>, which takes the value 0 in all 377,346 windows and therefore cannot carry information.</p>
+
+<p>The sleep label is absent in 24.4% of windows, and I left it absent. Filling it with 0 would assert that every unlabeled window is a waking one, which is close to the reverse of the truth, and the following section exists to examine why those windows are missing in the first place.</p>
+
+<p>Finally, a night crosses midnight, so grouping by calendar date bisects every sleep episode. I shifted each timestamp back twelve hours before taking the date, which defines a night as a noon-to-noon block named for the evening on which it begins, and lets a derived <code class="language-plaintext highlighter-rouge">hours_since_noon</code> run from 0 to 24 across that block with no wraparound.</p>
+
+<p>Two columns look as though they need a log transform and do not receive one. Both <code class="language-plaintext highlighter-rouge">lf_measurements:light</code> and <code class="language-plaintext highlighter-rouge">audio_properties:max_abs_value</code> are already log-scaled in the source data.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">uuid</th>
+      <th style="text-align: left">datetime</th>
+      <th style="text-align: right">hour</th>
+      <th style="text-align: right">acc_std</th>
+      <th style="text-align: right">battery_level</th>
+      <th style="text-align: left">battery_state</th>
+      <th style="text-align: right">ringer_mode</th>
+      <th style="text-align: right">asleep</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">00EABED2-271D-49D8-B599-1D4A09240601</td>
+      <td style="text-align: left">2015-10-05 14:06:01-07:00</td>
+      <td style="text-align: right">14.1</td>
+      <td style="text-align: right">0.003529</td>
+      <td style="text-align: right">0.46</td>
+      <td style="text-align: left">charging</td>
+      <td style="text-align: right">nan</td>
+      <td style="text-align: right">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">00EABED2-271D-49D8-B599-1D4A09240601</td>
+      <td style="text-align: left">2015-10-05 14:07:01-07:00</td>
+      <td style="text-align: right">14.1167</td>
+      <td style="text-align: right">0.004172</td>
+      <td style="text-align: right">0.46</td>
+      <td style="text-align: left">charging</td>
+      <td style="text-align: right">nan</td>
+      <td style="text-align: right">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">00EABED2-271D-49D8-B599-1D4A09240601</td>
+      <td style="text-align: left">2015-10-05 14:08:01-07:00</td>
+      <td style="text-align: right">14.1333</td>
+      <td style="text-align: right">0.003667</td>
+      <td style="text-align: right">0.46</td>
+      <td style="text-align: left">charging</td>
+      <td style="text-align: right">nan</td>
+      <td style="text-align: right">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">00EABED2-271D-49D8-B599-1D4A09240601</td>
+      <td style="text-align: left">2015-10-05 14:09:01-07:00</td>
+      <td style="text-align: right">14.15</td>
+      <td style="text-align: right">0.003541</td>
+      <td style="text-align: right">0.46</td>
+      <td style="text-align: left">charging</td>
+      <td style="text-align: right">nan</td>
+      <td style="text-align: right">0</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">00EABED2-271D-49D8-B599-1D4A09240601</td>
+      <td style="text-align: left">2015-10-05 14:10:31-07:00</td>
+      <td style="text-align: right">14.1667</td>
+      <td style="text-align: right">0.037653</td>
+      <td style="text-align: right">0.47</td>
+      <td style="text-align: left">unplugged</td>
+      <td style="text-align: right">nan</td>
+      <td style="text-align: right">0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="univariate-analysis">Univariate analysis</h3>
+
+<div class="figure">
+<iframe src="assets/motion-distribution.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<p class="caption"><span class="lab">Figure 1.</span> Distribution of accelerometer magnitude standard deviation across all 377,346 windows, on a log scale.</p>
+</div>
+
+<p>Accelerometer variability is bimodal. A tall, narrow mode near 10<sup>-2.8</sup> corresponds to a phone lying completely still, and a broad, low mode near 10<sup>-1.1</sup> corresponds to one being carried or handled, with a clear trough separating them. A single threshold on this column therefore partitions most windows cleanly. The difficulty is that the still mode contains both a sleeping user and a phone abandoned on a desk, so stillness alone cannot resolve the question.</p>
+
+<div class="figure">
+<iframe src="assets/sleep-duration.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<p class="caption"><span class="lab">Figure 2.</span> Recorded sleep per night across the 194 nights carrying at least 400 labeled windows and two hours of sleep.</p>
+</div>
+
+<p>Nightly sleep centers on a median of 7.0 hours with a long left tail. Some of that tail reflects genuinely short nights and some reflects interrupted recording, since a phone that stops sampling at three in the morning produces a night indistinguishable from an early waking.</p>
+
+<h3 id="bivariate-analysis">Bivariate analysis</h3>
+
+<div class="figure">
+<iframe src="assets/sleep-clock.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<p class="caption"><span class="lab">Figure 3.</span> Proportion of labeled windows reported as sleeping, by local hour of day.</p>
+</div>
+
+<p>Sleep peaks near 90% between three and five in the morning and falls below 2% in the late afternoon, with steep transitions around eleven at night and eight in the morning. The daytime floor does not reach zero, and that matters, because naps and irregular schedules mean clock time can never fully determine the label on its own.</p>
+
+<p>The harder comparison is between sleep and waking rest, since lying in bed at one in the morning resembles sleeping at one in the morning. Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, which isolates what remains.</p>
+
+<div class="figure">
+<iframe src="assets/battery-by-state.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<p class="caption"><span class="lab">Figure 4.</span> Battery level for sleeping and waking windows recorded while lying down between 22:00 and 06:00, across 67,328 windows from 52 users.</p>
+</div>
+
+<p>The separation falls almost entirely in one band. Full batteries account for 58% of sleeping windows and 29% of waking ones, while waking windows concentrate in the middle range where a phone has been in use through the evening. The plausible mechanism is the bedtime routine, in which the phone goes on the charger, fills, and remains there, whereas someone awake at two in the morning is draining it.</p>
+
+<h3 id="aggregation">Aggregation</h3>
+
+<p>Sleep rate broken down simultaneously by clock time and battery state, over all 285,268 labeled windows, separates the contribution of each.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Time of day</th>
+      <th style="text-align: right">Unplugged</th>
+      <th style="text-align: right">Discharging</th>
+      <th style="text-align: right">Not charging</th>
+      <th style="text-align: right">Charging</th>
+      <th style="text-align: right">Full</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">00-04</td>
+      <td style="text-align: right">0.647</td>
+      <td style="text-align: right">0.558</td>
+      <td style="text-align: right">0.967</td>
+      <td style="text-align: right">0.845</td>
+      <td style="text-align: right">0.904</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">04-08</td>
+      <td style="text-align: right">0.471</td>
+      <td style="text-align: right">0.564</td>
+      <td style="text-align: right">0.708</td>
+      <td style="text-align: right">0.791</td>
+      <td style="text-align: right">0.907</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">08-12</td>
+      <td style="text-align: right">0.063</td>
+      <td style="text-align: right">0.083</td>
+      <td style="text-align: right">0.297</td>
+      <td style="text-align: right">0.082</td>
+      <td style="text-align: right">0.657</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">12-16</td>
+      <td style="text-align: right">0.042</td>
+      <td style="text-align: right">0.024</td>
+      <td style="text-align: right">0.000</td>
+      <td style="text-align: right">0.030</td>
+      <td style="text-align: right">0.089</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">16-20</td>
+      <td style="text-align: right">0.039</td>
+      <td style="text-align: right">0.007</td>
+      <td style="text-align: right">0.000</td>
+      <td style="text-align: right">0.028</td>
+      <td style="text-align: right">0.219</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">20-24</td>
+      <td style="text-align: right">0.094</td>
+      <td style="text-align: right">0.033</td>
+      <td style="text-align: right">0.527</td>
+      <td style="text-align: right">0.327</td>
+      <td style="text-align: right">0.293</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>A full battery exceeds an unplugged one in every time bucket, frequently by a wide margin. Between eight in the morning and noon the sleep rate moves from 0.06 unplugged to 0.66 full, which is the difference between almost certainly awake and probably still in bed. Battery state therefore carries information that clock time does not, which is the premise the model rests on.</p>
+
+<p>Active charging behaves far less consistently and in the afternoon falls slightly below unplugged. What tracks sleep is accumulated charge rather than the act of drawing power, since a phone plugged in at two in the afternoon is a phone at a desk, while a phone at full charge at six in the morning has spent eight hours on a nightstand.</p>
+
+<p>The <code class="language-plaintext highlighter-rouge">not_charging</code> column rests on 3,986 labeled windows spread over six buckets, and its 00:00 to 04:00 cell on 30 of them, so those cells swing widely and should not be read closely.</p>
+
+<h2 id="assessment-of-missingness">Assessment of Missingness</h2>
+
+<h3 id="reasoning-about-the-mechanism">Reasoning about the mechanism</h3>
+
+<p>I believe <code class="language-plaintext highlighter-rouge">label:SLEEPING</code> is MNAR.</p>
+
+<p>Labels are self-reported through the ExtraSensory application, and a sleeping person cannot report anything. Every label covering a period of sleep is either entered beforehand or reconstructed after waking, so the state of being asleep is itself what prevents the label from being recorded. The probability that a value is missing therefore depends on the value it would have taken, which is what MNAR describes. The 24.4% missing rate is also not spread evenly, but concentrated in long overnight blocks in which a user went to bed without setting a label.</p>
+
+<p>The additional data that would render this MAR is the application’s own interaction log, recording when the user was prompted, when the app was brought to the foreground, and when a notification was dismissed. Knowing that a window fell within a stretch in which the user was never prompted would explain the missingness through the prompt schedule rather than through the sleep state, making it MAR conditional on prompt history. The public release does not include that log.</p>
+
+<h3 id="dependency-tests">Dependency tests</h3>
+
+<p>One methodological point governs everything below. The rows are one-minute windows drawn from continuous recording, so consecutive rows are nearly identical, and treating all 377,346 as independent draws drives every permutation test to a p-value of zero, including tests on columns with no plausible relationship to the outcome. To recover an effective sample size closer to the true one, I draw a single window per user per hour, which leaves 7,376 rows, still substantial but no longer dominated by within-session autocorrelation.</p>
+
+<p>For the first test the null hypothesis is that the distribution of battery level is the same whether or not the sleep label is missing, against the alternative that the two distributions differ. The test statistic is the absolute difference in mean battery level between the missing and non-missing groups, evaluated at a significance level of 0.05. Mean battery level is 0.605 where the label is absent and 0.672 where it is present, giving an observed statistic of <span class="gold">0.067</span>.</p>
+
+<div class="figure">
+<iframe src="assets/missingness-battery.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<p class="caption"><span class="lab">Figure 5.</span> Empirical null distribution over 5,000 permutations, with the observed statistic marked.</p>
+</div>
+
+<p>The observed gap does not occur in any of 5,000 permutations, so the p-value falls below <span class="gold">&lt; 0.001</span> and I reject the null. Windows carrying a missing sleep label sit at a lower battery level. The mechanism is direct, in that a phone running low belongs to someone who has stopped engaging with the application, and a phone that dies overnight stops recording labels entirely.</p>
+
+<p>The second test uses magnetometer variability, which measures fluctuation in the local magnetic field and responds to nearby metal and electronics. No route connects that to whether a participant remembered to label their sleep, which makes it a suitable control. The null hypothesis is that the distribution of magnetometer variability is the same whether or not the sleep label is missing, against the alternative that the two differ, using the absolute difference in means as the statistic at the same 0.05 level. The observed statistic is 0.392 with a p-value of 0.284, well above the threshold, so I fail to reject the null.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>Column</th>
+      <th style="text-align: right">Observed statistic</th>
+      <th style="text-align: right">p-value</th>
+      <th style="text-align: right">n</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">battery_level</code></td>
+      <td style="text-align: right"><span class="gold">0.0669</span></td>
+      <td style="text-align: right"><span class="gold">&lt; 0.001</span></td>
+      <td style="text-align: right">7,369</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">magnet_std</code></td>
+      <td style="text-align: right">0.3916</td>
+      <td style="text-align: right">0.284</td>
+      <td style="text-align: right">6,719</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>The sleep label therefore goes missing more often when the battery is low and at an unchanged rate regardless of the magnetic environment, which is the pattern expected if missingness is governed by whether the user and the phone were in any condition to record something. It is also the reason every subsequent section uses only labeled windows, and that filter biases the sample toward better-charged phones. This limits everything that follows and is not a footnote.</p>
+
+<h2 id="hypothesis-testing">Hypothesis Testing</h2>
+
+<p>The exploratory work suggests that among people lying in bed at night, those asleep have fuller batteries. The claim deserves a formal test, because battery level is the cheapest sleep signal available. It requires no permission on any platform, discloses nothing about location or speech, and is already visible on screen.</p>
+
+<p>Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, so the comparison runs between sleep and waking rest rather than between night and day. I use the same one-window-per-user-hour subsample described above, for the same reason, which leaves 1,274 windows from 52 users.</p>
+
+<p>The null hypothesis is that among those windows the mean battery level is the same for windows labeled sleeping and windows labeled not sleeping, with any observed difference attributable to chance. The alternative is that the mean battery level is higher when the user reported sleeping. The test statistic is the difference in mean battery level, sleeping minus waking, signed rather than absolute because the alternative is directional, and a difference in means rather than a total variation or Kolmogorov-Smirnov statistic because battery level is quantitative and the claim concerns level rather than shape. I evaluate at a significance level of 0.05 using a permutation test with 10,000 repetitions.</p>
+
+<div class="figure">
+<iframe src="assets/hypothesis-null.html" frameborder="0" scrolling="no" style="overflow:hidden;"></iframe>
+<p class="caption"><span class="lab">Figure 6.</span> Empirical null distribution over 10,000 permutations, with the observed difference of <span class="gold">0.149</span> marked.</p>
+</div>
+
+<p>The observed difference is <span class="gold">0.149</span> with a p-value below <span class="gold">&lt; 0.001</span>. Sleeping windows sit roughly fifteen percentage points higher in charge than waking ones at the same hour and in the same posture, and across 10,000 permutations no rearrangement of the labels produced a difference that large, so I reject the null at the 0.05 level.</p>
+
+<p>This constitutes evidence against the null rather than proof of a mechanism. A permutation test on observational data cannot exclude a common cause, and the most likely candidate is the bedtime routine itself, since plugging in and going to sleep are the same act for most people, which would make battery level a proxy for a habit rather than for sleep. That is acceptable for prediction and is precisely why the model relies on it, but it would not support a causal claim.</p>
+
+<p>Two limitations bound the estimate. The waking group contains only 142 windows after subsampling, because people who report lying down at night are usually asleep, so the waking mean is the noisier half of the comparison. The test also runs only on windows where the label exists, which the preceding section showed skews toward better-charged phones. Both considerations argue for treating 0.149 as an effect size with wide error bars rather than a point estimate.</p>
+
+<p>One further observation is that instantaneous charging state proved a substantially weaker signal than accumulated charge. Whether a phone is drawing power at this moment says less than whether it has been connected long enough to fill.</p>
+
+<h2 id="framing-a-prediction-problem">Framing a Prediction Problem</h2>
+
+<p>Given one minute of passive phone telemetry, I predict whether the user would label that window as sleeping, which is a binary classification task. The response variable is <code class="language-plaintext highlighter-rouge">label:SLEEPING</code> over the 285,254 windows in which it is present and the accelerometer recorded. It is the direct target of everything above, since each preceding section examined what distinguishes sleep from its absence, and this column encodes that distinction.</p>
+
+<p>I evaluate with F1 on the sleeping class. Accuracy is unsuitable because only 29.1% of labeled windows are sleep, so a model that always predicts waking scores 70.9% while being useless. The two error types also carry different costs and both matter, in that a false negative fragments a real night and understates its duration, while a false positive counts an hour of lying in the dark as sleep and overstates it. F1 requires precision and recall to be acceptable simultaneously, which is what a usable sleep summary demands. I report precision, recall, and accuracy alongside it so that the tradeoff remains visible.</p>
+
+<p>Every feature is a passive sensor reading drawn from the same one-minute window and available on the device the moment that window closes, so nothing looks forward and no label enters as an input. I exclude all GPS and microphone features despite their presence in the data and their predictive strength, because the premise of the project is what the remaining sensors can achieve alone. I also exclude every other <code class="language-plaintext highlighter-rouge">label:</code> column, including <code class="language-plaintext highlighter-rouge">LYING_DOWN</code>, which was useful for framing the hypothesis test but is itself self-reported and would not exist at prediction time.</p>
+
+<p>The split runs along user boundaries rather than rows. A random row split would place minutes from the same night on both sides, allowing a model to score well by memorizing individual habits, and the object here is a tracker that works on a phone it has never encountered. I therefore hold out 25% of users in full, leaving 39 training users covering 208,526 windows and 14 test users covering 76,728, with no data shared between them.</p>
+
+<h2 id="baseline-model">Baseline Model</h2>
+
+<h3 id="specification">Specification</h3>
+
+<p>The baseline uses the two features the exploratory analysis pointed to most directly and nothing else.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Type</th>
+      <th>Encoding</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">acc_std</code></td>
+      <td>Quantitative</td>
+      <td>Passed through unchanged, since a decision tree splits on thresholds and monotone rescaling would alter nothing</td>
+    </tr>
+    <tr>
+      <td><code class="language-plaintext highlighter-rouge">tod</code></td>
+      <td>Nominal</td>
+      <td>One-hot encoded into six four-hour buckets with unknown categories ignored</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<p>The second is a derived column rather than a raw one. Clock hour is cyclic and has no meaningful zero, so supplying it as a number would let the model treat 23:00 and 00:00 as maximally distant. Bucketing into six blocks and one-hot encoding removes the ordering entirely. The encoding is blunt, and improving it is the first item in the plan below.</p>
+
+<p>The estimator is a depth-3 decision tree, kept shallow deliberately, because with two inputs and clear threshold structure in both, additional depth would fit user-specific quirks that do not transfer to held-out participants. Feature transformation and model fitting occupy a single scikit-learn pipeline.</p>
+
+<div class="data-card">
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Split</th>
+      <th style="text-align: right">F1</th>
+      <th style="text-align: right">Precision</th>
+      <th style="text-align: right">Recall</th>
+      <th style="text-align: right">Accuracy</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Train</td>
+      <td style="text-align: right">0.790</td>
+      <td style="text-align: right">0.799</td>
+      <td style="text-align: right">0.781</td>
+      <td style="text-align: right">0.884</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Test, unseen users</td>
+      <td style="text-align: right"><span class="gold">0.833</span></td>
+      <td style="text-align: right">0.877</td>
+      <td style="text-align: right">0.794</td>
+      <td style="text-align: right">0.897</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<h3 id="what-the-model-actually-learned">What the model actually learned</h3>
+
+<p>The result is partly good. An F1 of <span class="gold">0.833</span> on fourteen users the model has never seen is genuine, and it stands well above the 0.488 obtained by predicting sleep on every window. Two features and three splits recover most of the available signal, which indicates the problem is easy in the bulk.</p>
+
+<p>Breaking recall down by hour shows that the headline score is misleading. Recall exceeds 0.94 at every hour from midnight through eight in the morning and is <span class="gold">exactly zero</span> at every other hour. A depth-3 tree given these two inputs has discovered a single rule, that sleeping means still and between midnight and eight, and consequently misses every sleeping minute reported at eleven at night or after eight in the morning, amounting to <span class="gold">4,491</span> windows in the test set alone.</p>
+
+<p>Three consequences follow. The model cannot represent sleep onset or wake time, which are the two quantities a sleep tracker exists to report and which fall precisely in the hours where recall vanishes; an overall recall of 0.794 conceals this because the midnight-to-eight band contains most of the sleep. Test F1 also exceeds train F1, at 0.833 against 0.790, which does not indicate strong generalization but reflects the held-out users sleeping more, 32.3% against 27.9%, inflating F1 on the positive class and marking a single fourteen-user split as a noisy estimate. Finally the two features compensate for each other badly, since stillness cannot separate sleep from a phone on a desk, clock time cannot separate sleep from lying awake at two in the morning, and neither feature knows anything about the preceding twenty minutes, when sleep is sustained stillness rather than any single still minute.</p>
+
+<h2 id="final-model">Final Model</h2>
+
+<p>In progress. Four additions are planned, each aimed at the hours where recall currently vanishes.</p>
+
+<p>Rolling stillness, computed as the mean of <code class="language-plaintext highlighter-rouge">acc_std</code> over a centered 31-minute window within each user, addresses the largest structural gap, since the baseline treats every minute as independent when a single still minute is ambiguous and half an hour of stillness is not. Time since the phone was last handled, measured in minutes since the most recent foreground or call window, encodes the transition into sleep rather than the state, which is what the failures at eleven at night require. Cyclic hour, replacing the six buckets with the sine and cosine of the clock angle, places 23:50 adjacent to 00:10 and removes the hard boundary that produced the failure in the first place. The privacy-safe phone state, covering <code class="language-plaintext highlighter-rouge">battery_level</code>, <code class="language-plaintext highlighter-rouge">battery_state</code>, <code class="language-plaintext highlighter-rouge">ringer_mode</code>, and <code class="language-plaintext highlighter-rouge">screen_brightness</code>, supplies information that the hypothesis test established is present exactly where clock time and stillness both fail.</p>
+
+<p>The estimator moves to a random forest, tuning maximum depth and minimum samples per leaf by grid search on the same split and the same metric, so that the comparison against the baseline is direct.</p>
+
+<h2 id="fairness-analysis">Fairness Analysis</h2>
+
+<p>In progress. The planned comparison evaluates model F1 on users whose sleep is concentrated overnight against users with irregular or daytime schedules, tested by permutation. A model leaning as heavily on clock time as this one does should be expected to underperform on the second group, and the purpose of the analysis is to measure the size of that gap.</p>
+
+
+      <footer class="site-footer">
+        
+          <span class="site-footer-owner"><a href="https://github.com/nahatav/sleep-mode">sleep-mode</a> is maintained by <a href="https://github.com/nahatav">nahatav</a>.</span>
+        
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a>.</span>
+      </footer>
+    </main>
+  
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      var id = link.getAttribute('href').slice(1);
+      var target = document.getElementById(id);
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.pushState(null, null, '#' + id);
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
