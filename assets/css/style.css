@@ -144,6 +144,18 @@ html {
   max-width: none !important;
 }
 
+/* Uniform table alignment: labels left, numeric columns right */
+.main-content table th,
+.main-content table td {
+  text-align: left;
+}
+
+.main-content table th.num,
+.main-content table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Gold Accent for Defining Numbers */
 .gold {
   color: var(--accent);
