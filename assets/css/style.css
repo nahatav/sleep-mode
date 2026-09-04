@@ -138,7 +138,10 @@ html {
 
 .data-card table {
   margin: 0 !important;
-  width: 100%;
+  display: table !important;
+  overflow: visible !important;
+  width: max-content !important;
+  max-width: none !important;
 }
 
 /* Gold Accent for Defining Numbers */
@@ -177,8 +180,14 @@ html, body {
   box-sizing: border-box;
 }
 
+/* Override Cayman base CSS which sets display:block;overflow:auto on .main-content table.
+   Must be display:table and overflow:visible so JS transform:scale() works on real mobile browsers. */
 .data-card table {
   margin: 0 !important;
+  display: table !important;
+  overflow: visible !important;
+  width: max-content !important;
+  max-width: none !important;
 }
 
 @media screen and (max-width: 48em) {
