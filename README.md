@@ -1,254 +1,245 @@
-﻿Valmik Nahata. DSC 80 at UCSD, Final Project. Data: the [UCSD ExtraSensory dataset](http://extrasensory.ucsd.edu/).
+# Sleep Mode
+
+<p class="byline">Detecting sleep from the sensors a phone does not need permission for.<br>
+Valmik Nahata · DSC 80, UC San Diego · <a href="http://extrasensory.ucsd.edu/">UCSD ExtraSensory dataset</a></p>
+
+<div class="abstract" markdown="1">
+Sleep tracking applications routinely request microphone and location access. Using 377,346 one-minute windows of smartphone telemetry from 60 users, I ask whether those permissions are necessary, or whether the sensors a phone reports without asking are already sufficient. Battery level turns out to carry a substantial and previously unremarked sleep signal, differing by 0.149 between sleeping and awake windows recorded in the same posture at the same hour of night. A decision tree using only motion and clock time reaches an F1 of 0.833 on fourteen held-out users, though a breakdown by hour shows it has learned a single rule that cannot represent sleep onset or wake time at all.
+</div>
+
+<div class="toc" markdown="0">
+<p class="toc-title">Contents</p>
+<a href="#introduction"><span class="num">1 · </span>Introduction</a>
+<a href="#data-cleaning-and-exploratory-data-analysis"><span class="num">2 · </span>Data Cleaning and Exploratory Data Analysis</a>
+<a href="#cleaning" class="sub">2.1 Cleaning</a>
+<a href="#univariate-analysis" class="sub">2.2 Univariate analysis</a>
+<a href="#bivariate-analysis" class="sub">2.3 Bivariate analysis</a>
+<a href="#aggregation" class="sub">2.4 Aggregation</a>
+<a href="#assessment-of-missingness"><span class="num">3 · </span>Assessment of Missingness</a>
+<a href="#reasoning-about-the-mechanism" class="sub">3.1 Reasoning about the mechanism</a>
+<a href="#dependency-tests" class="sub">3.2 Dependency tests</a>
+<a href="#hypothesis-testing"><span class="num">4 · </span>Hypothesis Testing</a>
+<a href="#framing-a-prediction-problem"><span class="num">5 · </span>Framing a Prediction Problem</a>
+<a href="#baseline-model"><span class="num">6 · </span>Baseline Model</a>
+<a href="#specification" class="sub">6.1 Specification</a>
+<a href="#what-the-model-actually-learned" class="sub">6.2 What the model actually learned</a>
+<a href="#final-model"><span class="num">7 · </span>Final Model</a>
+<a href="#fairness-analysis"><span class="num">8 · </span>Fairness Analysis</a>
+</div>
 
 ## Introduction
 
-Your phone can already tell when you are asleep. The question is what it has to look at to do it.
+A phone can already tell when you are asleep. The open question is what it has to look at in order to do so.
 
-Sleep staging apps ask for the microphone. Commercial trackers ask for location. Both are far more revealing than the thing they are trying to measure, and once granted, neither permission is limited to nighttime. So the question this project is built around is:
+Sleep staging applications ask for the microphone. Commercial trackers ask for location. Both sensors reveal far more than the state they are being used to infer, and neither permission, once granted, is restricted to nighttime. If the sensors a phone reports anyway are sufficient on their own, then a tracker that requests the invasive ones is making a product decision rather than satisfying a technical constraint. That distinction is testable, and this project tests it.
 
-**How well can a phone tell that you are asleep using only its dullest signals, meaning motion, battery, ringer, screen, and the clock? No microphone, no GPS.**
+The question I investigate is how well a phone can identify sleep using only its least sensitive signals, meaning motion, battery, ringer, screen, and clock time, with the microphone and GPS excluded entirely.
 
-If the boring sensors are good enough, then a sleep tracker asking for the invasive ones is asking for something it does not need. That is a claim you can actually test, and the answer decides whether "we need mic access to track your sleep" is a technical constraint or a product decision.
+The [UCSD ExtraSensory dataset](http://extrasensory.ucsd.edu/) is unusually well suited to the comparison. It contains a year of in-the-wild smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016, in which every row is a single one-minute window described by roughly 225 pre-computed sensor features alongside 51 context labels the participants reported about themselves. Because it carries both the invasive sensors and the innocuous ones on identical windows, the two can be compared directly rather than across separate studies.
 
-The [UCSD ExtraSensory dataset](http://extrasensory.ucsd.edu/) is well suited to it. It is a year of in-the-wild smartphone and smartwatch telemetry from 60 volunteers, collected on this campus between June 2015 and June 2016. Every row is a single one-minute window described by about 225 pre-computed sensor features, paired with 51 context labels that the users reported about themselves. Crucially it holds both the invasive sensors and the boring ones, so the comparison is possible on identical windows rather than across studies.
-
-I use **377,346 windows from all 60 users**. The full files carry 278 columns; I keep 30, chosen to cover the sensor families that could plausibly say something about sleep, plus the labels I need and two sensors I deliberately exclude from the model later.
+I use all 377,346 windows from all 60 users. The source files carry 278 columns; I retain 30, covering the sensor families that could plausibly bear on sleep, the labels required to define and frame the problem, and two sensors that exist in the data purely so that I can demonstrate excluding them.
 
 | Column | Description |
 | --- | --- |
-| `uuid` | Anonymized user ID, taken from the filename |
+| `uuid` | Anonymized user identifier, recovered from the filename |
 | `timestamp` | Unix time at the start of the one-minute window |
-| `raw_acc:magnitude_stats:std` | Standard deviation of accelerometer magnitude in the window. My main stillness measure |
-| `raw_acc:magnitude_stats:mean` | Mean accelerometer magnitude. Near 1 g when the phone is at rest |
+| `raw_acc:magnitude_stats:std` | Standard deviation of accelerometer magnitude, the primary stillness measure |
+| `raw_acc:magnitude_stats:mean` | Mean accelerometer magnitude, near 1 g when the phone is at rest |
 | `raw_acc:magnitude_stats:value_entropy` | Entropy of the accelerometer magnitude distribution |
-| `proc_gyro:magnitude_stats:std` | Rotation variability. Picks up handling that translation misses |
+| `proc_gyro:magnitude_stats:std` | Rotation variability, which captures handling that translation misses |
 | `lf_measurements:battery_level` | Battery charge as a fraction from 0 to 1 |
-| `discrete:battery_state:*` | One-hot family: unplugged, discharging, not charging, charging, full |
-| `discrete:ringer_mode:*` | One-hot family: normal, silent with vibrate, silent without vibrate |
-| `discrete:app_state:*` | One-hot family: whether the app was foreground, background, or inactive |
+| `discrete:battery_state:*` | One-hot family covering unplugged, discharging, not charging, charging, full |
+| `discrete:ringer_mode:*` | One-hot family covering normal, silent with vibrate, silent without vibrate |
+| `discrete:app_state:*` | One-hot family recording whether the app was foreground, background, or inactive |
 | `lf_measurements:screen_brightness` | Screen brightness from 0 to 1 |
-| `lf_measurements:light` | Ambient light, already log-scaled |
-| `discrete:wifi_status:is_reachable_via_wifi` | Whether the phone had a WiFi connection |
+| `lf_measurements:light` | Ambient light, already log-scaled at source |
+| `discrete:wifi_status:is_reachable_via_wifi` | Whether the phone held a WiFi connection |
 | `discrete:on_the_phone:is_True` | Whether a call was active |
-| `label:SLEEPING` | Self-reported sleep. 1, 0, or missing. The response variable |
-| `label:LYING_DOWN` | Self-reported posture. Used to separate sleep from awake rest |
+| `label:SLEEPING` | Self-reported sleep, taking values 1, 0, or missing, and serving as the response variable |
+| `label:LYING_DOWN` | Self-reported posture, used to separate sleep from awake rest |
 | `label:LOC_home` | Self-reported location |
-| `location:log_diameter` | Log of the spatial spread of GPS fixes. Held out of the model on purpose |
-| `audio_properties:max_abs_value` | Log peak microphone amplitude. Also held out on purpose |
-| `raw_magnet:magnitude_stats:std` | Magnetometer variability. Used as a control in the missingness tests |
-
----
+| `location:log_diameter` | Log spatial spread of GPS fixes, withheld from the model deliberately |
+| `audio_properties:max_abs_value` | Log peak microphone amplitude, also withheld deliberately |
+| `raw_magnet:magnitude_stats:std` | Magnetometer variability, used as a control in the missingness tests |
 
 ## Data Cleaning and Exploratory Data Analysis
 
 ### Cleaning
 
-Seven things needed fixing before any of this was usable.
+Each user occupies a separate compressed file named for their anonymized identifier, and that identifier appears nowhere in the file contents. I recovered it from the filename and attached it as a column before concatenating, since every subsequent step depends on knowing which user a window came from, and the train-test split is drawn along user boundaries.
 
-**1. Sixty files into one frame.** Each user lives in a separate `.csv.gz` named by their anonymized ID, and the ID appears nowhere inside the file. I pulled it from the filename and added it as a `uuid` column so user identity survives the concatenation. Everything downstream depends on this, because the train/test split is by user.
+Timestamps arrive as seconds since epoch, which is unusable for a question about sleep. The study ran at UC San Diego, so I converted to `America/Los_Angeles`. The choice is not cosmetic. A conversion that ignores daylight saving displaces half the year by an hour, and an hour is a large error when the entire question concerns where sleep falls on the clock.
 
-**2. Unix time into local clock time.** `timestamp` is seconds since epoch, which is useless for a sleep question. The study ran at UCSD, so I converted to `America/Los_Angeles`. This is not cosmetic. A daylight-saving-naive conversion shifts half the year by an hour, and an hour is a large error when the whole point is where sleep sits on the clock.
+The `discrete:` sensors arrive pre-encoded as one-hot families, so `battery_state` is spread across six binary columns. That shape is wrong for both grouping and for `OneHotEncoder`, and it conceals the fact that the categories are mutually exclusive, so I collapsed each family back into a single nominal column. Every family also carries a `:missing` indicator, which I mapped to a null rather than treating as a category. For `ringer_mode` that indicator is set on 58.6% of windows, almost all originating from iPhones, because iOS does not expose ringer state to third-party applications. Encoding a device limitation as though it meant the phone was silent would fabricate data.
 
-**3. One-hot families back into categorical columns.** The `discrete:` sensors arrive already one-hot encoded, so `battery_state` is spread across six binary columns. That is the wrong shape for both `groupby` and `OneHotEncoder`, and it hides the fact that the categories are mutually exclusive. I collapsed each family into a single nominal column.
+I dropped `lf_measurements:proximity`, which takes the value 0 in all 377,346 windows and therefore cannot carry information.
 
-**4. The `:missing` indicators are genuinely missing, not a category.** Each family has a `:missing` column. For `ringer_mode` it is set on 58.6% of windows, almost all from iPhones, because iOS does not expose ringer state to third-party apps. That is a device limitation, not a silent phone, so encoding it as "silent" would invent data. I map those windows to `NaN`.
+The sleep label is absent in 24.4% of windows, and I left it absent. Filling it with 0 would assert that every unlabeled window is a waking one, which is close to the reverse of the truth, and the following section exists to examine why those windows are missing in the first place.
 
-**5. Dropped `lf_measurements:proximity`.** It is exactly 0 in all 377,346 windows. A column with one value cannot carry information.
+Finally, a night crosses midnight, so grouping by calendar date bisects every sleep episode. I shifted each timestamp back twelve hours before taking the date, which defines a night as a noon-to-noon block named for the evening on which it begins, and lets a derived `hours_since_noon` run from 0 to 24 across that block with no wraparound.
 
-**6. Left the labels missing.** `label:SLEEPING` is missing in 24.4% of windows. Filling it with 0 would silently assert that every unlabeled window is awake, which is close to the opposite of the truth. The next section is about why those windows are missing, so imputing here would erase the thing worth studying.
+Two columns look as though they need a log transform and do not receive one. Both `lf_measurements:light` and `audio_properties:max_abs_value` are already log-scaled in the source data.
 
-**7. Built a night index.** A night crosses midnight, so calendar date splits every sleep episode in two. I shifted each timestamp back 12 hours and took the date, so a "night" runs noon to noon and is named for the evening it starts on. `hours_since_noon` then runs 0 to 24 across that window with no wraparound, which makes sleep timing directly averageable.
-
-I did not touch `lf_measurements:light` or `audio_properties:max_abs_value`, which look like they need a log transform but are already log-scaled at source.
-
-The first few rows of the cleaned frame:
-
-| uuid                                 | datetime                  |    hour |   acc_std |   battery_level | battery_state   |   ringer_mode |   asleep |
-|:-------------------------------------|:--------------------------|--------:|----------:|----------------:|:----------------|--------------:|---------:|
-| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:06:01-07:00 | 14.1    |  0.003529 |            0.46 | charging        |           nan |        0 |
-| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:07:01-07:00 | 14.1167 |  0.004172 |            0.46 | charging        |           nan |        0 |
-| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:08:01-07:00 | 14.1333 |  0.003667 |            0.46 | charging        |           nan |        0 |
-| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:09:01-07:00 | 14.15   |  0.003541 |            0.46 | charging        |           nan |        0 |
-| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:10:31-07:00 | 14.1667 |  0.037653 |            0.47 | unplugged       |           nan |        0 |
+| uuid | datetime | hour | acc_std | battery_level | battery_state | ringer_mode | asleep |
+|:---|:---|---:|---:|---:|:---|---:|---:|
+| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:06:01-07:00 | 14.1 | 0.003529 | 0.46 | charging | nan | 0 |
+| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:07:01-07:00 | 14.1167 | 0.004172 | 0.46 | charging | nan | 0 |
+| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:08:01-07:00 | 14.1333 | 0.003667 | 0.46 | charging | nan | 0 |
+| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:09:01-07:00 | 14.15 | 0.003541 | 0.46 | charging | nan | 0 |
+| 00EABED2-271D-49D8-B599-1D4A09240601 | 2015-10-05 14:10:31-07:00 | 14.1667 | 0.037653 | 0.47 | unplugged | nan | 0 |
 
 ### Univariate analysis
 
-<iframe src="assets/motion-distribution.html" width="800" height="470" frameborder="0"></iframe>
+<div class="figure" markdown="0">
+<iframe src="assets/motion-distribution.html" frameborder="0"></iframe>
+<p class="caption"><span class="lab">Figure 1.</span> Distribution of accelerometer magnitude standard deviation across all 377,346 windows, on a log scale.</p>
+</div>
 
-Accelerometer variability is bimodal on a log scale: a tall narrow mode near 10^-2.8 where the phone is sitting completely still, and a broad low mode near 10^-1.1 where it is being carried or handled, with a clear trough between them. A single threshold on this column therefore separates most windows cleanly, but the still mode holds both a sleeping user and a phone abandoned on a desk, so stillness alone cannot be the whole story.
+Accelerometer variability is bimodal. A tall, narrow mode near 10<sup>-2.8</sup> corresponds to a phone lying completely still, and a broad, low mode near 10<sup>-1.1</sup> corresponds to one being carried or handled, with a clear trough separating them. A single threshold on this column therefore partitions most windows cleanly. The difficulty is that the still mode contains both a sleeping user and a phone abandoned on a desk, so stillness alone cannot resolve the question.
 
-<iframe src="assets/sleep-duration.html" width="800" height="470" frameborder="0"></iframe>
+<div class="figure" markdown="0">
+<iframe src="assets/sleep-duration.html" frameborder="0"></iframe>
+<p class="caption"><span class="lab">Figure 2.</span> Recorded sleep per night across the 194 nights carrying at least 400 labeled windows and two hours of sleep.</p>
+</div>
 
-Across the 194 nights with enough labels to measure, recorded sleep centers on a median of 7.0 hours with a long left tail. Part of that tail is real short nights and part is gaps in recording, since a phone that stops sampling at 3am produces a night that looks identical to an early wake-up.
+Nightly sleep centers on a median of 7.0 hours with a long left tail. Some of that tail reflects genuinely short nights and some reflects interrupted recording, since a phone that stops sampling at three in the morning produces a night indistinguishable from an early waking.
 
 ### Bivariate analysis
 
-<iframe src="assets/sleep-clock.html" width="800" height="470" frameborder="0"></iframe>
+<div class="figure" markdown="0">
+<iframe src="assets/sleep-clock.html" frameborder="0"></iframe>
+<p class="caption"><span class="lab">Figure 3.</span> Proportion of labeled windows reported as sleeping, by local hour of day.</p>
+</div>
 
-Sleep peaks near 90% between 3am and 5am and bottoms out under 2% in the late afternoon, with steep transitions around 11pm and 8am. The daytime floor is not zero, which matters: naps and irregular schedules mean clock time can never fully determine sleep on its own.
+Sleep peaks near 90% between three and five in the morning and falls below 2% in the late afternoon, with steep transitions around eleven at night and eight in the morning. The daytime floor does not reach zero, and that matters, because naps and irregular schedules mean clock time can never fully determine the label on its own.
 
-The harder comparison is between sleep and awake rest, since lying in bed at 1am looks a lot like sleeping at 1am. Restricting to windows where the user reported lying down between 10pm and 6am holds posture and clock time roughly fixed and asks what is left.
+The harder comparison is between sleep and waking rest, since lying in bed at one in the morning resembles sleeping at one in the morning. Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, which isolates what remains.
 
-<iframe src="assets/battery-by-state.html" width="800" height="470" frameborder="0"></iframe>
+<div class="figure" markdown="0">
+<iframe src="assets/battery-by-state.html" frameborder="0"></iframe>
+<p class="caption"><span class="lab">Figure 4.</span> Battery level for sleeping and waking windows recorded while lying down between 22:00 and 06:00, across 67,328 windows from 52 users.</p>
+</div>
 
-The split is almost entirely in one band. 58% of sleeping windows show a completely full battery against 29% of awake ones, while awake-in-bed windows pile up in the 25% to 75% middle where a phone has been in use all evening. The plausible mechanism is bedtime routine: the phone goes on the charger, tops up, and stays there, while someone awake at 2am is draining it.
+The separation falls almost entirely in one band. Full batteries account for 58% of sleeping windows and 29% of waking ones, while waking windows concentrate in the middle range where a phone has been in use through the evening. The plausible mechanism is the bedtime routine, in which the phone goes on the charger, fills, and remains there, whereas someone awake at two in the morning is draining it.
 
-### Interesting aggregates
+### Aggregation
 
-Sleep rate split by both clock time and battery state, over all 285,268 labeled windows:
+Sleep rate broken down simultaneously by clock time and battery state, over all 285,268 labeled windows, separates the contribution of each.
 
-| tod   |   unplugged |   discharging |   not_charging |   charging |   full |
-|:------|------------:|--------------:|---------------:|-----------:|-------:|
-| 00-04 |       0.647 |         0.558 |          0.967 |      0.845 |  0.904 |
-| 04-08 |       0.471 |         0.564 |          0.708 |      0.791 |  0.907 |
-| 08-12 |       0.063 |         0.083 |          0.297 |      0.082 |  0.657 |
-| 12-16 |       0.042 |         0.024 |          0     |      0.03  |  0.089 |
-| 16-20 |       0.039 |         0.007 |          0     |      0.028 |  0.219 |
-| 20-24 |       0.094 |         0.033 |          0.527 |      0.327 |  0.293 |
+| Time of day | Unplugged | Discharging | Not charging | Charging | Full |
+|:---|---:|---:|---:|---:|---:|
+| 00-04 | 0.647 | 0.558 | 0.967 | 0.845 | 0.904 |
+| 04-08 | 0.471 | 0.564 | 0.708 | 0.791 | 0.907 |
+| 08-12 | 0.063 | 0.083 | 0.297 | 0.082 | 0.657 |
+| 12-16 | 0.042 | 0.024 | 0.000 | 0.030 | 0.089 |
+| 16-20 | 0.039 | 0.007 | 0.000 | 0.028 | 0.219 |
+| 20-24 | 0.094 | 0.033 | 0.527 | 0.327 | 0.293 |
 
-A full battery beats an unplugged one in every single time bucket, and often by a lot. Between 08:00 and 12:00 the sleep rate goes from 0.06 unplugged to 0.66 full, which is the difference between "almost certainly up" and "probably still in bed". So battery state carries information that clock time does not, which is the entire premise of the model later on.
+A full battery exceeds an unplugged one in every time bucket, frequently by a wide margin. Between eight in the morning and noon the sleep rate moves from 0.06 unplugged to 0.66 full, which is the difference between almost certainly awake and probably still in bed. Battery state therefore carries information that clock time does not, which is the premise the model rests on.
 
-Actively charging is much less consistent, and in the afternoon it sits slightly below unplugged. What tracks sleep is accumulated charge, not the act of drawing power: a phone plugged in at 2pm is a desk phone, a phone that is full at 6am has been on the nightstand for eight hours.
+Active charging behaves far less consistently and in the afternoon falls slightly below unplugged. What tracks sleep is accumulated charge rather than the act of drawing power, since a phone plugged in at two in the afternoon is a phone at a desk, while a phone at full charge at six in the morning has spent eight hours on a nightstand.
 
-The `not_charging` column rests on only 3,986 labeled windows spread across six buckets, and its 00:00 to 04:00 cell on 30 of them, so those cells swing hard and should not be read closely.
-
----
+The `not_charging` column rests on 3,986 labeled windows spread over six buckets, and its 00:00 to 04:00 cell on 30 of them, so those cells swing widely and should not be read closely.
 
 ## Assessment of Missingness
 
-### NMAR analysis
+### Reasoning about the mechanism
 
-I believe `label:SLEEPING` is **MNAR**.
+I believe `label:SLEEPING` is MNAR.
 
-The labels are self-reported through the ExtraSensory app, and a sleeping person cannot report anything. Every label covering sleep is either entered before falling asleep or reconstructed after waking, so the act of being asleep is itself what prevents the label from being recorded. The probability that the value is missing depends on the value it would have taken, which is the definition of MNAR. The 24.4% missing rate is not spread evenly either. It concentrates in long overnight blocks where a user went to bed without setting a label.
+Labels are self-reported through the ExtraSensory application, and a sleeping person cannot report anything. Every label covering a period of sleep is either entered beforehand or reconstructed after waking, so the state of being asleep is itself what prevents the label from being recorded. The probability that a value is missing therefore depends on the value it would have taken, which is what MNAR describes. The 24.4% missing rate is also not spread evenly, but concentrated in long overnight blocks in which a user went to bed without setting a label.
 
-The additional data that would make this MAR is the app's own interaction log: when the user was prompted, when the app was foregrounded, when a notification was dismissed. If I knew a window fell in a stretch where the user was never prompted, the missingness would be explained by the prompt schedule rather than by the sleep state, and I could treat it as MAR given prompt history. The public release does not include it.
+The additional data that would render this MAR is the application's own interaction log, recording when the user was prompted, when the app was brought to the foreground, and when a notification was dismissed. Knowing that a window fell within a stretch in which the user was never prompted would explain the missingness through the prompt schedule rather than through the sleep state, making it MAR conditional on prompt history. The public release does not include that log.
 
-### Missingness dependency
+### Dependency tests
 
-One methodological note first. The rows are one-minute windows from a continuous recording, so consecutive rows are nearly identical. Treating 377,346 of them as independent draws makes every permutation test return p = 0, including tests on columns with no plausible connection to the outcome. To get an effective sample size closer to the real one, I draw **one window per user per hour**, leaving 7,376 rows. Still large, but no longer dominated by within-session autocorrelation.
+One methodological point governs everything below. The rows are one-minute windows drawn from continuous recording, so consecutive rows are nearly identical, and treating all 377,346 as independent draws drives every permutation test to a p-value of zero, including tests on columns with no plausible relationship to the outcome. To recover an effective sample size closer to the true one, I draw a single window per user per hour, which leaves 7,376 rows, still substantial but no longer dominated by within-session autocorrelation.
 
-**Test 1: does the missingness of `label:SLEEPING` depend on `battery_level`?**
+For the first test the null hypothesis is that the distribution of battery level is the same whether or not the sleep label is missing, against the alternative that the two distributions differ. The test statistic is the absolute difference in mean battery level between the missing and non-missing groups, evaluated at a significance level of 0.05. Mean battery level is 0.605 where the label is absent and 0.672 where it is present, giving an observed statistic of 0.067.
 
-- **Null:** the distribution of battery level is the same whether or not the sleep label is missing.
-- **Alternative:** the distributions differ.
-- **Test statistic:** absolute difference in mean battery level between the missing and non-missing groups.
-- **Significance level:** 0.05.
+<div class="figure" markdown="0">
+<iframe src="assets/missingness-battery.html" frameborder="0"></iframe>
+<p class="caption"><span class="lab">Figure 5.</span> Empirical null distribution over 5,000 permutations, with the observed statistic marked.</p>
+</div>
 
-Observed statistic **0.067**, with mean battery 0.605 where the label is missing against 0.672 where it is present.
+The observed gap does not occur in any of 5,000 permutations, so the p-value falls below 0.001 and I reject the null. Windows carrying a missing sleep label sit at a lower battery level. The mechanism is direct, in that a phone running low belongs to someone who has stopped engaging with the application, and a phone that dies overnight stops recording labels entirely.
 
-<iframe src="assets/missingness-battery.html" width="800" height="470" frameborder="0"></iframe>
+The second test uses magnetometer variability, which measures fluctuation in the local magnetic field and responds to nearby metal and electronics. No route connects that to whether a participant remembered to label their sleep, which makes it a suitable control. The null hypothesis is that the distribution of magnetometer variability is the same whether or not the sleep label is missing, against the alternative that the two differ, using the absolute difference in means as the statistic at the same 0.05 level. The observed statistic is 0.392 with a p-value of 0.284, well above the threshold, so I fail to reject the null.
 
-The observed gap never appears in 5,000 permutations, so **p < 0.001** and I reject the null. Windows with a missing sleep label sit at a lower battery level. The mechanism is straightforward: a phone running low is a phone whose owner has stopped interacting with the app, and a phone that dies overnight stops collecting labels entirely.
-
-**Test 2: does it depend on `magnet_std`?**
-
-Magnetometer variability measures how much the local magnetic field fluctuated in the window. It responds to nearby metal and electronics. There is no route from that to whether a user remembered to label their sleep, so this is the control.
-
-- **Null:** the distribution of magnetometer variability is the same whether or not the sleep label is missing.
-- **Alternative:** the distributions differ.
-- **Test statistic:** absolute difference in mean magnetometer variability.
-- **Significance level:** 0.05.
-
-Observed statistic **0.392**, **p = 0.284**. Well above 0.05, so I fail to reject the null. The missingness of `label:SLEEPING` does not appear to depend on the magnetic environment.
-
-| column | observed | p-value | n |
-| --- | --- | --- | --- |
+| Column | Observed statistic | p-value | n |
+| --- | ---: | ---: | ---: |
 | `battery_level` | 0.0669 | < 0.001 | 7,369 |
 | `magnet_std` | 0.3916 | 0.284 | 6,719 |
 
-Taken together: the sleep label goes missing more often when the battery is low, and just as often regardless of the magnetic environment. That is the pattern you would expect if missingness is driven by whether the user and their phone were in any state to record something. It is also why everything below uses only windows where the label is present, and that filter biases the sample toward better-charged phones. That is a real limitation of the rest of this project, not a footnote.
-
----
+The sleep label therefore goes missing more often when the battery is low and at an unchanged rate regardless of the magnetic environment, which is the pattern expected if missingness is governed by whether the user and the phone were in any condition to record something. It is also the reason every subsequent section uses only labeled windows, and that filter biases the sample toward better-charged phones. This limits everything that follows and is not a footnote.
 
 ## Hypothesis Testing
 
-The EDA suggested that among people lying in bed at night, the sleepers have fuller batteries. That is worth testing properly, because it is the cheapest possible sleep signal. Battery level requires no permission on any platform, reveals nothing about where you are or what you said, and is already on screen.
+The exploratory work suggests that among people lying in bed at night, those asleep have fuller batteries. The claim deserves a formal test, because battery level is the cheapest sleep signal available. It requires no permission on any platform, discloses nothing about location or speech, and is already visible on screen.
 
-Restricting to windows where the user reported lying down between 10pm and 6am holds posture and clock time roughly fixed, so the comparison is between sleep and awake rest rather than between night and day. I use the same one-per-user-hour subsample as above, for the same autocorrelation reason. That leaves 1,274 windows from 52 users.
+Restricting to windows in which the user reported lying down between ten at night and six in the morning holds posture and clock time approximately fixed, so the comparison runs between sleep and waking rest rather than between night and day. I use the same one-window-per-user-hour subsample described above, for the same reason, which leaves 1,274 windows from 52 users.
 
-- **Null hypothesis:** among windows where a user reported lying down between 10pm and 6am, the mean battery level is the same for windows labeled sleeping and windows labeled not sleeping. Any observed difference is due to chance.
-- **Alternative hypothesis:** among those windows, the mean battery level is higher when the user reported sleeping.
-- **Test statistic:** difference in mean battery level, sleeping minus awake. Signed rather than absolute because the alternative is directional, and a difference in means rather than a TVD or KS statistic because battery level is quantitative and the claim is about level, not shape.
-- **Significance level:** 0.05.
+The null hypothesis is that among those windows the mean battery level is the same for windows labeled sleeping and windows labeled not sleeping, with any observed difference attributable to chance. The alternative is that the mean battery level is higher when the user reported sleeping. The test statistic is the difference in mean battery level, sleeping minus waking, signed rather than absolute because the alternative is directional, and a difference in means rather than a total variation or Kolmogorov-Smirnov statistic because battery level is quantitative and the claim concerns level rather than shape. I evaluate at a significance level of 0.05 using a permutation test with 10,000 repetitions.
 
-<iframe src="assets/hypothesis-null.html" width="800" height="470" frameborder="0"></iframe>
+<div class="figure" markdown="0">
+<iframe src="assets/hypothesis-null.html" frameborder="0"></iframe>
+<p class="caption"><span class="lab">Figure 6.</span> Empirical null distribution over 10,000 permutations, with the observed difference of 0.149 marked.</p>
+</div>
 
-**Observed difference 0.149. p < 0.001.**
+The observed difference is 0.149 with a p-value below 0.001. Sleeping windows sit roughly fifteen percentage points higher in charge than waking ones at the same hour and in the same posture, and across 10,000 permutations no rearrangement of the labels produced a difference that large, so I reject the null at the 0.05 level.
 
-Sleeping windows sit about 15 percentage points higher in charge than awake-in-bed windows at the same hour and in the same posture. Across 10,000 permutations, the largest difference produced by chance never reached that value, so I reject the null at the 0.05 level.
+This constitutes evidence against the null rather than proof of a mechanism. A permutation test on observational data cannot exclude a common cause, and the most likely candidate is the bedtime routine itself, since plugging in and going to sleep are the same act for most people, which would make battery level a proxy for a habit rather than for sleep. That is acceptable for prediction and is precisely why the model relies on it, but it would not support a causal claim.
 
-This is evidence against the null, not proof of a mechanism. A permutation test on observational data cannot rule out that something else drives both, and the most likely candidate is the bedtime routine itself: plugging in and going to sleep are the same act for most people, so battery level may be standing in for a habit rather than for sleep. That is fine for prediction, and it is exactly why the model leans on it. It would not be fine as a causal claim.
+Two limitations bound the estimate. The waking group contains only 142 windows after subsampling, because people who report lying down at night are usually asleep, so the waking mean is the noisier half of the comparison. The test also runs only on windows where the label exists, which the preceding section showed skews toward better-charged phones. Both considerations argue for treating 0.149 as an effect size with wide error bars rather than a point estimate.
 
-Two limitations worth naming. The awake group is only 142 windows after subsampling, since people who report lying down at night are usually asleep, so the estimate of the awake mean is the noisy half of this comparison. And the whole test runs on windows where the sleep label exists, which the missingness analysis showed skews toward better-charged phones. Both push toward treating 0.149 as an effect size with wide error bars rather than a point estimate.
-
-Worth noting separately that instantaneous charging state was a much weaker signal than accumulated charge. Whether the phone is drawing power right now says less than whether it has been plugged in long enough to fill up.
-
----
+One further observation is that instantaneous charging state proved a substantially weaker signal than accumulated charge. Whether a phone is drawing power at this moment says less than whether it has been connected long enough to fill.
 
 ## Framing a Prediction Problem
 
-**Problem.** Given one minute of passive phone telemetry, predict whether the user would label that window as sleeping. This is **binary classification**.
+Given one minute of passive phone telemetry, I predict whether the user would label that window as sleeping, which is a binary classification task. The response variable is `label:SLEEPING` over the 285,254 windows in which it is present and the accelerometer recorded. It is the direct target of everything above, since each preceding section examined what distinguishes sleep from its absence, and this column encodes that distinction.
 
-**Response variable.** `label:SLEEPING`, restricted to the 285,254 windows where it is present and the accelerometer recorded. It is the direct target: everything above was about what separates sleep from not-sleep, and this is the column that encodes it.
+I evaluate with F1 on the sleeping class. Accuracy is unsuitable because only 29.1% of labeled windows are sleep, so a model that always predicts waking scores 70.9% while being useless. The two error types also carry different costs and both matter, in that a false negative fragments a real night and understates its duration, while a false positive counts an hour of lying in the dark as sleep and overstates it. F1 requires precision and recall to be acceptable simultaneously, which is what a usable sleep summary demands. I report precision, recall, and accuracy alongside it so that the tradeoff remains visible.
 
-**Metric.** **F1 on the sleeping class.** Accuracy is a bad choice here because only 29.1% of labeled windows are sleep, so always predicting "awake" scores 70.9% while being useless. The two error types also cost different things and both matter. A false negative chops a real night into fragments and understates sleep duration. A false positive counts an hour of lying in the dark as sleep and overstates it. F1 forces precision and recall to be good at the same time, which is what a usable sleep summary needs. I report precision, recall and accuracy alongside it so the tradeoff stays visible.
+Every feature is a passive sensor reading drawn from the same one-minute window and available on the device the moment that window closes, so nothing looks forward and no label enters as an input. I exclude all GPS and microphone features despite their presence in the data and their predictive strength, because the premise of the project is what the remaining sensors can achieve alone. I also exclude every other `label:` column, including `LYING_DOWN`, which was useful for framing the hypothesis test but is itself self-reported and would not exist at prediction time.
 
-**What is known at prediction time.** Every feature is a passive sensor reading from the same one-minute window, available on-device the moment the window closes. Nothing looks forward, and no label is used as an input.
-
-**What I exclude on purpose.** No GPS features and no microphone features, even though both are in the dataset and both are strong predictors. Leaving them out is the premise of the project: the question is what the dull sensors alone can do. I also exclude every other `label:` column, including `LYING_DOWN`, which was useful for framing the hypothesis test but is itself self-reported and would not exist at prediction time.
-
-**Splitting by user, not by row.** A random row split would put minutes from the same night on both sides, and a model could score well by memorizing individual users' habits. Since the point is a tracker that works on a phone it has never seen, I hold out 25% of users entirely. The 39 training users (208,526 windows) and 14 test users (76,728 windows) share no data.
-
----
+The split runs along user boundaries rather than rows. A random row split would place minutes from the same night on both sides, allowing a model to score well by memorizing individual habits, and the object here is a tracker that works on a phone it has never encountered. I therefore hold out 25% of users in full, leaving 39 training users covering 208,526 windows and 14 test users covering 76,728, with no data shared between them.
 
 ## Baseline Model
 
-The baseline uses the two features the EDA pointed at most directly, and nothing else.
+### Specification
+
+The baseline uses the two features the exploratory analysis pointed to most directly and nothing else.
 
 | Feature | Type | Encoding |
 | --- | --- | --- |
-| `acc_std` | Quantitative | Passed through unchanged. A decision tree splits on thresholds, so monotone rescaling would change nothing |
-| `tod` | Nominal | One-hot encoded into six four-hour buckets, with `handle_unknown='ignore'` |
+| `acc_std` | Quantitative | Passed through unchanged, since a decision tree splits on thresholds and monotone rescaling would alter nothing |
+| `tod` | Nominal | One-hot encoded into six four-hour buckets with unknown categories ignored |
 
-`tod` is a derived column, not a raw one. The underlying hour is cyclic and has no meaningful zero, so feeding it in as a number would let the model treat 23:00 and 00:00 as maximally far apart. Bucketing into six blocks and one-hot encoding removes that ordering entirely. It is a blunt encoding, and improving it is the first thing on the list for the final model.
+The second is a derived column rather than a raw one. Clock hour is cyclic and has no meaningful zero, so supplying it as a number would let the model treat 23:00 and 00:00 as maximally distant. Bucketing into six blocks and one-hot encoding removes the ordering entirely. The encoding is blunt, and improving it is the first item in the plan below.
 
-The estimator is a **depth-3 decision tree**, shallow on purpose: with two inputs and clear threshold structure in both, a deeper tree would fit user-specific quirks that will not transfer to held-out users. Feature transformation and model fitting are in a single `sklearn` Pipeline.
+The estimator is a depth-3 decision tree, kept shallow deliberately, because with two inputs and clear threshold structure in both, additional depth would fit user-specific quirks that do not transfer to held-out participants. Feature transformation and model fitting occupy a single scikit-learn pipeline.
 
-| baseline            |    F1 |   precision |   recall |   accuracy |
-|:--------------------|------:|------------:|---------:|-----------:|
-| train               | 0.790 |       0.799 |    0.781 |      0.884 |
-| test (unseen users) | 0.833 |       0.877 |    0.794 |      0.897 |
+| Split | F1 | Precision | Recall | Accuracy |
+|:---|---:|---:|---:|---:|
+| Train | 0.790 | 0.799 | 0.781 | 0.884 |
+| Test, unseen users | 0.833 | 0.877 | 0.794 | 0.897 |
 
-### Is it good?
+### What the model actually learned
 
-Partly. Test F1 of 0.833 on 14 users the model has never seen is a real result, and a long way above the 0.488 you get from predicting sleep every time. Two features and three splits recover most of the signal, which says the problem is genuinely easy in the bulk.
+The result is partly good. An F1 of 0.833 on fourteen users the model has never seen is genuine, and it stands well above the 0.488 obtained by predicting sleep on every window. Two features and three splits recover most of the available signal, which indicates the problem is easy in the bulk.
 
-But breaking recall down by hour shows the model is not doing what the headline score suggests. Recall sits above 0.94 at every hour from midnight to 8am, and is **exactly zero at every other hour**. A depth-3 tree with these two inputs has learned one rule: sleeping means still and between midnight and 8am. Every sleeping minute reported at 11pm, and every one reported after 8am, is missed. That is 4,491 windows in the test set alone.
+Breaking recall down by hour shows that the headline score is misleading. Recall exceeds 0.94 at every hour from midnight through eight in the morning and is exactly zero at every other hour. A depth-3 tree given these two inputs has discovered a single rule, that sleeping means still and between midnight and eight, and consequently misses every sleeping minute reported at eleven at night or after eight in the morning, amounting to 4,491 windows in the test set alone.
 
-Three problems follow.
-
-**The model cannot represent sleep onset or wake time.** Those are the two numbers a sleep tracker exists to report, and they live precisely in the hours where recall is zero. Overall recall of 0.794 hides this completely, because the 00:00 to 08:00 band is where most of the sleep is.
-
-**Test F1 exceeds train F1**, 0.833 against 0.790. That is not the model generalizing well, it is the held-out users sleeping more, 32.3% against 27.9%, which inflates F1 on the positive class. A single 14-user split is a noisy estimate.
-
-**The two features cover for each other badly.** Stillness cannot tell sleep from a phone on a desk. Clock time cannot tell sleep from lying awake at 2am, and the hypothesis test showed how much is left on the table there. Neither feature knows anything about the last twenty minutes, and sleep is sustained stillness rather than any single still minute.
-
----
+Three consequences follow. The model cannot represent sleep onset or wake time, which are the two quantities a sleep tracker exists to report and which fall precisely in the hours where recall vanishes; an overall recall of 0.794 conceals this because the midnight-to-eight band contains most of the sleep. Test F1 also exceeds train F1, at 0.833 against 0.790, which does not indicate strong generalization but reflects the held-out users sleeping more, 32.3% against 27.9%, inflating F1 on the positive class and marking a single fourteen-user split as a noisy estimate. Finally the two features compensate for each other badly, since stillness cannot separate sleep from a phone on a desk, clock time cannot separate sleep from lying awake at two in the morning, and neither feature knows anything about the preceding twenty minutes, when sleep is sustained stillness rather than any single still minute.
 
 ## Final Model
 
-*In progress.* Four additions are planned, aimed squarely at the zero-recall hours above:
+In progress. Four additions are planned, each aimed at the hours where recall currently vanishes.
 
-1. **Rolling stillness**, the mean of `acc_std` over a centered 31-minute window within each user. A single still minute is ambiguous, half an hour of stillness is not. This is the feature the baseline most obviously lacks, since it currently treats every minute as independent.
-2. **Time since the phone was last handled**, in minutes since the most recent foreground or call window. Sleep follows putting the phone down, so this encodes the transition into sleep rather than the state.
-3. **Cyclic hour**, replacing the six one-hot buckets with sine and cosine of the clock angle, so 23:50 and 00:10 sit next to each other. The current bucketing is what creates the hard boundary at midnight in the first place.
-4. **The privacy-safe phone state**: `battery_level`, `battery_state`, `ringer_mode`, `screen_brightness`. The hypothesis test established that battery level carries real information exactly where clock time and stillness both fail.
+Rolling stillness, computed as the mean of `acc_std` over a centered 31-minute window within each user, addresses the largest structural gap, since the baseline treats every minute as independent when a single still minute is ambiguous and half an hour of stillness is not. Time since the phone was last handled, measured in minutes since the most recent foreground or call window, encodes the transition into sleep rather than the state, which is what the failures at eleven at night require. Cyclic hour, replacing the six buckets with the sine and cosine of the clock angle, places 23:50 adjacent to 00:10 and removes the hard boundary that produced the failure in the first place. The privacy-safe phone state, covering `battery_level`, `battery_state`, `ringer_mode`, and `screen_brightness`, supplies information that the hypothesis test established is present exactly where clock time and stillness both fail.
 
-The estimator moves to a `RandomForestClassifier`, tuning `max_depth` and `min_samples_leaf` by `GridSearchCV` on the same split and the same metric, so the comparison against the baseline is direct.
-
----
+The estimator moves to a random forest, tuning maximum depth and minimum samples per leaf by grid search on the same split and the same metric, so that the comparison against the baseline is direct.
 
 ## Fairness Analysis
 
-*In progress.* The planned comparison is model F1 on users whose sleep is concentrated overnight against users with irregular or daytime schedules, tested by permutation. A model that leans as heavily on clock time as this one does should be expected to fail the second group, and the point of the analysis is to measure by how much.
+In progress. The planned comparison evaluates model F1 on users whose sleep is concentrated overnight against users with irregular or daytime schedules, tested by permutation. A model leaning as heavily on clock time as this one does should be expected to underperform on the second group, and the purpose of the analysis is to measure the size of that gap.
